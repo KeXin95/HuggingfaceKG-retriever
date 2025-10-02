@@ -1,0 +1,11 @@
+# Python 3.12.11
+torch
+torch-geometric
+scikit-learn
+joblib
+pandas
+numpy
+scipy
+transformers==4.56.2
+gensim==4.3.3
+tqdm==4.67.1
