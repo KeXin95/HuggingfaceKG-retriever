@@ -6,12 +6,8 @@ from sklearn.metrics import f1_score
 import argparse
 from torch_geometric.data import Data
 import joblib
-
-# **NEW: Import the GCNConv layer from PyTorch Geometric**
 from torch_geometric.nn import GCNConv
 
-# 1. Define the GCN Model using torch_geometric layers
-# This is now a true GCN implementation.
 class GCN(nn.Module):
     def __init__(self, in_feats, hidden_size, out_feats, dropout=0.5):
         super(GCN, self).__init__()
