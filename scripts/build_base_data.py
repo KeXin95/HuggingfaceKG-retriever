@@ -8,6 +8,7 @@ from datetime import datetime
 import argparse
 from configs import main_config as config
 from .utils import convert2group, encode_onehot
+from .feas_author import add_author_col
 
 
 def process_folder2df(json_dir):
@@ -48,6 +49,10 @@ def process_folder2df(json_dir):
     
     temp_df = temp_df[temp_df['id'].isin(np.concatenate([model_nodes,dataset_nodes]))]
     print(f"After cleaning, nodes count={len(temp_df)}")
+    
+    ## Extract author column
+    temp_df['author'] = add_author_col(temp_df)
+    print(f"Author column added, nodes count={len(temp_df)}")
     
     # Preparing idx to nodes
     temp_df = temp_df[~temp_df['description'].isna()]
