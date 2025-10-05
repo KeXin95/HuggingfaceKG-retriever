@@ -20,7 +20,7 @@ python -m scripts.build_base_data --run_dir "$RUN_DIR"
 python -m scripts.generate_features --run_dir "$RUN_DIR"
 
 # STAGE 3: And again, pass the SAME run directory
-python -m scripts.build_graph --run_dir "$RUN_DIR" --split_strategy time
+python -m scripts.build_graph --run_dir "$RUN_DIR" --split_strategy time --remove_isolated --isolated_strategy connected_only
 
 echo "Pipeline finished successfully!"
 
