@@ -177,6 +177,7 @@ jupyter notebook exploration.ipynb
     1. Replace Standard scaler to use L2 norm
     2. Add EDA on original graph from paper
     3. Add GAT training script
+    4. Removed **ALL** isolated nodes from graph
 
 ### Performance Tracking
 #### 2025-10-04:
