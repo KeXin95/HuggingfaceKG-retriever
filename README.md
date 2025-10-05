@@ -171,3 +171,37 @@ Use the provided Jupyter notebook for data exploration:
 ```bash
 jupyter notebook exploration.ipynb
 ```
+
+### CHANGELOG
+1. 2025-10-04: 
+    1. Replace Standard scaler to use L2 norm
+    2. Add EDA on original graph from paper
+    3. Add GAT training script
+
+### Performance Tracking
+#### 2025-10-04:
+> CUDA_VISIBLE_DEVICES=4 python train_GCN.py --graph_path ./experiment_runs/run_2025-10-04_21-45-35/final_graph.pt --save_path ./experiment_runs/run_2025-10-04_21-45-35/trained_gcn.pt
+```
+Training finished!
+🏆 Best Validation Micro-F1 Score: 0.8162
+
+Loading best model and evaluating on the test set...
+-----------------------------------------
+Final Test Results:
+  - Test Loss: 0.0695
+  - Test Micro-F1: 0.4004
+-----------------------------------------
+```
+
+> CUDA_VISIBLE_DEVICES=4 python train_GAT.py --graph_path ./experiment_runs/run_2025-10-04_21-45-35/final_graph.pt --save_path ./experiment_runs/run_2025-10-04_21-45-35/trained_gat.pt
+```
+Training finished!
+🏆 Best Validation Micro-F1 Score: 0.8203
+
+Loading best model and evaluating on the test set...
+-----------------------------------------
+Final Test Results:
+  - Test Loss: 0.0522
+  - Test Micro-F1: 0.4073
+-----------------------------------------
+```
