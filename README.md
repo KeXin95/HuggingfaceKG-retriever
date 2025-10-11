@@ -111,7 +111,7 @@ The pipeline generates large files that may exceed GitHub's file size limits:
 
 - **Experiment runs** (`experiment_runs/`): Contains processed data, embeddings, and trained models
 - **Input data** (`HuggingKG_V20250916155543/`): Raw JSON data from Hugging Face Hub
-- **Model checkpoints**: Trained GNN models (`.pt` files)
+- **Model checkpoints**: Trained GNN models (`trained_*.pt` files)
 
 
 ## Configuration
