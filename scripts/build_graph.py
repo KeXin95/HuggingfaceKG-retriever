@@ -26,6 +26,16 @@ def prepocess_nodes_df(nodes_df_, JSON_FOLDER, timefilter=True):
         val_end_ds = pd.Timestamp('2024-08-15 00:00:00', tz=pytz.UTC)
         test_start_ds = pd.Timestamp('2024-08-15 00:00:00', tz=pytz.UTC)
         test_end_ds = pd.Timestamp('2024-12-15 00:00:00', tz=pytz.UTC)
+
+        # val_start_model = pd.Timestamp('2025-06-17 00:00:00', tz=pytz.UTC)
+        # val_end_model = pd.Timestamp('2025-07-17 00:00:00', tz=pytz.UTC)
+        # test_start_model = pd.Timestamp('2025-07-17 00:00:00', tz=pytz.UTC)
+        # test_end_model = pd.Timestamp('2025-09-17 00:00:00', tz=pytz.UTC)
+        
+        # val_start_ds = pd.Timestamp('2025-01-17 00:00:00', tz=pytz.UTC)
+        # val_end_ds = pd.Timestamp('2025-05-17 00:00:00', tz=pytz.UTC)
+        # test_start_ds = pd.Timestamp('2025-05-17 00:00:00', tz=pytz.UTC)
+        # test_end_ds = pd.Timestamp('2025-09-17 00:00:00', tz=pytz.UTC)
         
         # Parse the createdAt_str column to datetime
         nodes_df_['createdAt'] = pd.to_datetime(nodes_df_['createdAt'], utc=True)
@@ -272,6 +282,7 @@ def construct_graph(nodes_df_, GRAPH_OUTPUT_FILE,
             print("Note: Some nodes may be labeled but not connected, which is expected.")
     
     # --- Create and save the final graph object ---
+    # import pdb; pdb.set_trace()
     graph_data = Graph(
         x=final_x,
         y=final_y,
@@ -317,7 +328,7 @@ def main():
     print("Loading pre-processed data...")
     nodes_df = pd.read_pickle(nodes_df_path)
     edges_df = pd.read_pickle(edges_df_path)
-    x = torch.load(features_path)
+    x = torch.load(features_path, weights_only=False)
 
     # 1. Create splits
     use_time_filter = (args.split_strategy == 'time')

@@ -99,7 +99,7 @@ The input folder must contain these files:
 
 Pre-computed experiment results are available for download:
 
-**🔗 [Download Experiment Results from Google Drive](https://drive.google.com/drive/u/1/folders/1z4z75BCGtIfGcgeztAWTcP2yNiY1nNUK)**
+**🔗 [Download Experiment Results from Google Drive](https://drive.google.com/drive/u/1/folders/1tk03BEFGyRhB9Sn7UzvXO1yAdc3MdopH)**
 
 **Note**: The experiment results are large (several GB) and contain all the processed data from the pipeline stages.
 
@@ -146,7 +146,7 @@ Run each stage individually:
 python -m scripts.build_base_data --run_dir ./experiment_runs/my_run
 
 # Stage 2: Generate features
-python -m scripts.generate_features --run_dir ./experiment_runs/my_run
+python -m scripts.generate_features_bm25 --run_dir ./experiment_runs/my_run
 
 # Stage 3: Build graph
 python -m scripts.build_graph --run_dir ./experiment_runs/my_run --split_strategy time
@@ -171,6 +171,20 @@ Use the provided Jupyter notebook for data exploration:
 ```bash
 jupyter notebook exploration.ipynb
 ```
+### Features
+1. text embedding: use bge-base-en to get embedding from description
+2. bm25 score: use model/dataset description as query and list of tasks name as corpus, we create this feature as a lot of times the user has put the task name directly on the description, so that we can use it to enhance model performance.
+
+### Graph data field explanation
+```
+graph = torch.load('experiment_runs/run_2025-09-26_21-25-12/final_graph.pt')
+graph
+> Data(x=[107694, 822], edge_index=[2, 124056], y=[107694, 54], train_mask=[107694], val_mask=[107694], test_mask=[107694])
+```
+- x: BGE-en-base (column 1-768) embedding and BM25 retriever (column 768-822) of 107694 records
+- edge_index: edge pairs
+- y: target label (Multilabel), example: [0, 0, 0, 1, 0, ...0], each entries in this lists is 1 indicates that the user has labeled its model/dataset to this task, in this example, a "1" at index 3 indicates that this model/dataset is associated to image-to-video (check `task_to_idx.json` in each run result)
+- train_mask/val_mask/test_mask: a list of True/False indicating the nodes is for training/validation/testing
 
 ### CHANGELOG
 1. 2025-10-04: 
@@ -178,6 +192,9 @@ jupyter notebook exploration.ipynb
     2. Add EDA on original graph from paper
     3. Add GAT training script
     4. Removed **ALL** isolated nodes from graph
+2. 2025-10-11: 
+    1. Use bm25 as features on top of original BGE embeddings
+    2. Regenerate dataset with dates closer to our own collections dates (latest data can be found [here](https://drive.google.com/drive/u/1/folders/1tk03BEFGyRhB9Sn7UzvXO1yAdc3MdopH))
 
 ### Performance Tracking
 #### 2025-10-04:
@@ -205,4 +222,20 @@ Final Test Results:
   - Test Loss: 0.0522
   - Test Micro-F1: 0.4073
 -----------------------------------------
+```
+
+
+> CUDA_VISIBLE_DEVICES=4 python train_GCN.py --graph_path ./experiment_runs/run_2025-10-10_22-12-12/final_graph.pt --scaler_path ./experiment_runs/run_2025-10-10_22-12-12/scaler.pkl --save_path ./experiment_runs/run_2025-10-10_22-12-12/trained_gcn_own_scaler.pt >> ./experiment_runs/run_2025-10-10_22-12-12/training_own.log 2>&1
+```
+Training finished!
+🏆 Best Validation Micro-F1 Score: 0.8919
+
+Loading best model and evaluating on the test set...
+-----------------------------------------
+Final Test Results:
+  - Test Loss: 0.0736
+  - Test Micro-F1: 0.4855
+-----------------------------------------
+✅ Best model saved to ./experiment_runs/run_2025-10-10_22-12-12/trained_gcn_own_scaler.pt
+
 ```
