@@ -225,17 +225,17 @@ Final Test Results:
 ```
 
 
-> CUDA_VISIBLE_DEVICES=4 python train_GCN.py --graph_path ./experiment_runs/run_2025-10-10_22-12-12/final_graph.pt --scaler_path ./experiment_runs/run_2025-10-10_22-12-12/scaler.pkl --save_path ./experiment_runs/run_2025-10-10_22-12-12/trained_gcn_own_scaler.pt >> ./experiment_runs/run_2025-10-10_22-12-12/training_own.log 2>&1
+> CUDA_VISIBLE_DEVICES=4 python train_GCN.py --graph_path ./experiment_runs/run_2025-10-11_13-12-14/final_graph.pt --scaler_path ./experiment_runs/run_2025-10-11_13-12-14/scaler.pkl --save_path ./experiment_runs/run_2025-10-11_13-12-14/trained_gcn_own_scaler.pt >> ./experiment_runs/run_2025-10-11_13-12-14/training_own.log 2>&1
 ```
 Training finished!
-🏆 Best Validation Micro-F1 Score: 0.8919
+🏆 Best Validation Micro-F1 Score: 0.8918
 
 Loading best model and evaluating on the test set...
 -----------------------------------------
 Final Test Results:
-  - Test Loss: 0.0736
-  - Test Micro-F1: 0.4855
+  - Test Loss: 0.0720
+  - Test Micro-F1: 0.4912
 -----------------------------------------
-✅ Best model saved to ./experiment_runs/run_2025-10-10_22-12-12/trained_gcn_own_scaler.pt
+✅ Best model saved to ./experiment_runs/run_2025-10-11_13-12-14/trained_gcn_own_scaler.pt
 
 ```
