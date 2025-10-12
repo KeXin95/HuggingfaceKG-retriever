@@ -195,47 +195,19 @@ graph
 2. 2025-10-11: 
     1. Use bm25 as features on top of original BGE embeddings
     2. Regenerate dataset with dates closer to our own collections dates (latest data can be found [here](https://drive.google.com/drive/u/1/folders/1tk03BEFGyRhB9Sn7UzvXO1yAdc3MdopH))
+    3. Train SAGECONV and Graph Transformer model and achieve much better micro-f1 result.
 
 ### Performance Tracking
-#### 2025-10-04:
-> CUDA_VISIBLE_DEVICES=4 python train_GCN.py --graph_path ./experiment_runs/run_2025-10-04_21-45-35/final_graph.pt --save_path ./experiment_runs/run_2025-10-04_21-45-35/trained_gcn.pt
-```
-Training finished!
-🏆 Best Validation Micro-F1 Score: 0.8162
 
-Loading best model and evaluating on the test set...
------------------------------------------
-Final Test Results:
-  - Test Loss: 0.0695
-  - Test Micro-F1: 0.4004
------------------------------------------
-```
+| Date | Model | Run ID | Best Val Micro-F1 | Test Loss | Test Micro-F1 | Notes | Model filename |
+|------|-------|--------|-------------------|-----------|---------------|-------| -------------- | 
+| 2025-10-04 | GCN | run_2025-10-04_21-45-35 | 0.8162 | 0.0695 | 0.4004 | Standard scaler | trained_gcn.pt |
+| 2025-10-04 | GAT | run_2025-10-04_21-45-35 | 0.8203 | 0.0522 | 0.4073 | Standard scaler | trained_gat.pt |
+| 2025-10-11 | GCN | run_2025-10-11_13-12-14 | 0.8918 | 0.0720 | 0.4912 | With own scaler + BM25 features | trained_gcn_own_scaler.pt |
+| 2025-10-11 | SAGECONV | run_2025-10-11_13-12-14 | 0.9284 | 0.0306 | 0.5528 | With own scaler + BM25 features | trained_sageconv_own_scaler.pt |
+| 2025-10-11 | Graph Transformer | run_2025-10-11_13-12-14 | 0.9268 | 0.0100 | 0.6032 | With own scaler + BM25 features | trained_trans_own_scaler.pt |
 
-> CUDA_VISIBLE_DEVICES=4 python train_GAT.py --graph_path ./experiment_runs/run_2025-10-04_21-45-35/final_graph.pt --save_path ./experiment_runs/run_2025-10-04_21-45-35/trained_gat.pt
-```
-Training finished!
-🏆 Best Validation Micro-F1 Score: 0.8203
-
-Loading best model and evaluating on the test set...
------------------------------------------
-Final Test Results:
-  - Test Loss: 0.0522
-  - Test Micro-F1: 0.4073
------------------------------------------
-```
-
-
-> CUDA_VISIBLE_DEVICES=4 python train_GCN.py --graph_path ./experiment_runs/run_2025-10-11_13-12-14/final_graph.pt --scaler_path ./experiment_runs/run_2025-10-11_13-12-14/scaler.pkl --save_path ./experiment_runs/run_2025-10-11_13-12-14/trained_gcn_own_scaler.pt >> ./experiment_runs/run_2025-10-11_13-12-14/training_own.log 2>&1
-```
-Training finished!
-🏆 Best Validation Micro-F1 Score: 0.8918
-
-Loading best model and evaluating on the test set...
------------------------------------------
-Final Test Results:
-  - Test Loss: 0.0720
-  - Test Micro-F1: 0.4912
------------------------------------------
-✅ Best model saved to ./experiment_runs/run_2025-10-11_13-12-14/trained_gcn_own_scaler.pt
-
-```
+#### Key Improvements:
+- **2025-10-11**: Significant improvement in both validation and test Micro-F1 scores
+- **BM25 Features**: Addition of BM25 features on top of BGE embeddings improved performance
+- **Custom Scaler**: Using own scaler instead of standard scaler contributed to better results
