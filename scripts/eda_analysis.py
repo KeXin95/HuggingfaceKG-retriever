@@ -103,7 +103,7 @@ def analyze_label_distribution(data, idx_to_task=None, output_dir=None):
     print(f"Min labels per node: {labels.sum(axis=1).min()}")
     
     # Show top 10 most frequent labels
-    print("\n🏆 Top 10 Most Frequent Labels:")
+    print("\n Top 10 Most Frequent Labels:")
     top_labels = label_df.nlargest(10, 'Total_Count')[['Label_Index', 'Total_Count', 'Total_Percentage']].copy()
     
     if idx_to_task:

@@ -158,7 +158,7 @@ if __name__ == "__main__":
                 break
     
     print("\nTraining finished!")
-    print(f"🏆 Best Validation Micro-F1 Score: {best_val_f1:.4f}")
+    print(f"Best Validation Micro-F1 Score: {best_val_f1:.4f}")
 
     if best_model_state:
         print("\nLoading best model and evaluating on the test set...")
