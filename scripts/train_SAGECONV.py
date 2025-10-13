@@ -101,7 +101,7 @@ if __name__ == "__main__":
     scaler = StandardScaler()
     scaler.fit(data.x[data.train_mask])
     joblib.dump(scaler, args.scaler_path)
-    print(f"✅ Scaler saved to {args.scaler_path}")
+    print(f"Scaler saved to {args.scaler_path}")
     
     data.x = torch.from_numpy(scaler.transform(data.x)).float()
     # import pdb; pdb.set_trace()
@@ -186,5 +186,5 @@ if __name__ == "__main__":
         print("-----------------------------------------")
         
         torch.save(best_model_state, args.save_path)
-        print(f"✅ Best model saved to {args.save_path}")
+        print(f"Best model saved to {args.save_path}")
 

@@ -47,10 +47,10 @@ def load_task_mappings(task_mapping_path):
         with open(task_mapping_path, 'r') as f:
             task_to_idx = json.load(f)
         idx_to_task = {v: k for k, v in task_to_idx.items()}
-        print(f"✅ Loaded {len(task_to_idx)} task labels from {task_mapping_path}")
+        print(f"Loaded {len(task_to_idx)} task labels from {task_mapping_path}")
         return task_to_idx, idx_to_task
     except FileNotFoundError:
-        print(f"⚠️ Task mapping file not found: {task_mapping_path}")
+        print(f"Task mapping file not found: {task_mapping_path}")
         print("Using numeric indices instead")
         return {}, {}
 
@@ -620,7 +620,7 @@ def generate_summary_report(data, label_df, idx_to_task, connectivity_stats, out
     print(f"   • Node connectivity shows {'high' if connectivity_stats['degrees'].mean() > 10 else 'low'} average degree")
     print(f"   • Feature quality is {'good' if (feature_stds == 0).sum() < 10 else 'needs attention'}")
     
-    print(f"\n✅ EDA Analysis Complete!")
+    print(f"\nEDA Analysis Complete!")
     print("=" * 60)
     
     # Save summary to file if output directory is provided
@@ -690,7 +690,7 @@ def main():
     print(f"\n📂 Loading dataset from {args.dataset_path}...")
     try:
         data = torch.load(args.dataset_path)
-        print(f"✅ Dataset loaded successfully")
+        print(f"Dataset loaded successfully")
         print(f"Graph info: {data.num_nodes} nodes, {data.num_edges} edges")
         print(f"Feature dimension: {data.x.shape[1]}")
         print(f"Number of labels: {data.y.shape[1]}")
