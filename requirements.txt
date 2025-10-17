@@ -3,8 +3,8 @@ torch
 torch-geometric
 scikit-learn
 joblib
-pandas
-numpy
+pandas==2.3.2
+numpy==2.0.1
 scipy
 transformers==4.56.2
 gensim==4.3.3
