@@ -8,24 +8,20 @@ from torch_geometric.nn.models import GRetriever
 from torch_geometric.nn.models.g_retriever import LLM
 from torch_geometric.nn import GCN
 from torch.utils.data import Dataset, DataLoader
-from torch.optim import AdamW
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.metrics import f1_score
 from tqdm import tqdm
 import psutil
-import time
 
-parser = argparse.ArgumentParser(description="Run G-Retriever Training")
+parser = argparse.ArgumentParser(description="Run G-Retriever Inference")
 parser.add_argument('--llm_name', type=str, default='google/gemma-2b', help='Name of the Hugging Face language model to use.')
-parser.add_argument('--data_limit', type=int, default=0, help='Limit data samples for testing. Set to 0 for all data.')
-parser.add_argument('--epochs', type=int, default=3, help='Number of training epochs.')
-parser.add_argument('--batch_size', type=int, default=4, help='Batch size for training and validation.')
-parser.add_argument('--lr', type=float, default=1e-5, help='Learning rate for the optimizer.')
+parser.add_argument('--checkpoint_path', type=str, required=True, help='Path to the trained model checkpoint.')
+parser.add_argument('--data_limit', type=int, default=50, help='Limit data samples for inference testing.')
+parser.add_argument('--batch_size', type=int, default=4, help='Batch size for inference.')
 args = parser.parse_args()
 
-DATA_LIMIT = args.data_limit if args.data_limit > 0 else None
+DATA_LIMIT = args.data_limit
 RUN_DIR = './experiment_runs/run_2025-10-11_19-13-00/'
-CHECKPOINT_PATH = os.path.join(RUN_DIR, 'g_retriever_manual_checkpoint.pt')
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def print_memory_usage(stage=""):
@@ -33,7 +29,7 @@ def print_memory_usage(stage=""):
     mem_info = process.memory_info()
     print(f"--- Memory Usage [{stage}]: {mem_info.rss / (1024**3):.2f} GB ---")
 
-print(f"🚀 Starting the G-Retriever script (Device: {DEVICE})...")
+print(f"🚀 Starting G-Retriever Inference (Device: {DEVICE})...")
 try:
     print(f"Loading graph from '{RUN_DIR}final_graph.pt'...")
     graph = torch.load(f'{RUN_DIR}final_graph.pt', weights_only=False)
@@ -89,13 +85,26 @@ gnn_model = GCN(
     num_layers=2,
     out_channels=GNN_OUT_CHANNELS,
 )
+# gnn_model.to(DEVICE) # <-- CHANGE: Let PyTorch move this automatically
 
-retriever = GRetriever(llm=llm_wrapper, gnn=gnn_model, mlp_out_channels=2048) # Ensure retriever is on the correct device
+retriever = GRetriever(llm=llm_wrapper, gnn=gnn_model, mlp_out_channels=2048)
+# retriever.to(DEVICE) # <-- CHANGE: Let PyTorch move this automatically
 print(f"✅ GRetriever model initialized successfully!")
 
 print_memory_usage("------After Model Initialization------")
 
-print("\nPreparing DataLoaders...")
+print(f"\nLoading checkpoint from: {args.checkpoint_path}...")
+if os.path.exists(args.checkpoint_path):
+    # Load checkpoint onto the CPU first, as model is on CPU
+    retriever.load_state_dict(torch.load(args.checkpoint_path, map_location='cpu'))
+    print("✅ Checkpoint loaded successfully!")
+else:
+    print(f"❌ Error: Checkpoint file not found at {args.checkpoint_path}")
+    exit()
+
+print_memory_usage("------After Checkpoint Loading------")
+
+print("\nPreparing DataLoader for inference...")
 class QADataset(Dataset):
     def __init__(self, queries, answers, node_indices):
         self.queries = queries
@@ -116,9 +125,8 @@ def get_indices(mask, limit=None):
         indices = indices[:limit]
     return indices
 
-train_indices = get_indices(graph.train_mask, limit=DATA_LIMIT)
-val_indices = get_indices(graph.val_mask, limit=DATA_LIMIT)
 test_indices = get_indices(graph.test_mask, limit=DATA_LIMIT)
+print(f"Using {len(test_indices)} samples for inference (limit: {DATA_LIMIT})")
 
 def prepare_qa_pairs(indices):
     queries, answers = [], []
@@ -134,12 +142,8 @@ def prepare_qa_pairs(indices):
         answers.append(answer)
     return queries, answers
 
-train_queries, train_answers = prepare_qa_pairs(train_indices)
-val_queries, val_answers = prepare_qa_pairs(val_indices)
 test_queries, test_answers = prepare_qa_pairs(test_indices)
 
-train_dataset = QADataset(train_queries, train_answers, train_indices)
-val_dataset = QADataset(val_queries, val_answers, val_indices)
 test_dataset = QADataset(test_queries, test_answers, test_indices)
 
 def simple_collate_fn(batch):
@@ -155,6 +159,7 @@ def simple_collate_fn(batch):
     if local_edge_index.dim() == 2 and local_edge_index.shape[0] != 2:
         local_edge_index = local_edge_index.t()
 
+    # <-- CHANGE: Move data to DEVICE here, just like training.py
     batch_x = graph.x.to(DEVICE)
     batch_edge_index = local_edge_index.to(DEVICE)
     batch_vector = torch.zeros(graph.num_nodes, dtype=torch.long, device=DEVICE)
@@ -167,103 +172,50 @@ def simple_collate_fn(batch):
         "batch": batch_vector
     }
 
-train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=simple_collate_fn)
-val_loader = DataLoader(val_dataset, batch_size=args.batch_size, collate_fn=simple_collate_fn)
-test_loader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=simple_collate_fn)
-print(f"✅ DataLoaders prepared.")
+test_loader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=simple_collate_fn, num_workers=0)
+print(f"✅ DataLoader prepared with {len(test_dataset)} samples.")
 
 print_memory_usage("------After DataLoader Preparation------")
 
-optimizer = AdamW(retriever.parameters(), lr=args.lr)
-best_val_loss = float('inf')
-
-print("\n🚀 Starting Training Loop...")
-for epoch in range(args.epochs):
-    start_time = time.time()
-    retriever.train()
-    total_train_loss = 0.0
-    for i, batch in enumerate(tqdm(train_loader, desc=f"Epoch {epoch+1}/{args.epochs} [Train]")):
-        optimizer.zero_grad()
-        loss = retriever(
+print("\n🚀 Running Inference on test set...")
+retriever.eval()
+predictions = []
+with torch.inference_mode():
+    for batch in tqdm(test_loader, desc="Generating Predictions"):
+        
+        x = batch['x']
+        edge_index = batch['edge_index']
+        batch_tensor = batch['batch']
+        
+        batch_predictions = retriever.inference(
             question=batch['query'],
-            x=batch['x'],
-            edge_index=batch['edge_index'],
-            batch=batch['batch'],
-            label=batch['answer']
+            x=x,  
+            edge_index=edge_index,
+            batch=batch_tensor
         )
-        print_memory_usage(f"------Epoch {epoch+1} Batch {i+1} After Forward Pass------")
-        if loss is not None:
-            loss.backward()
-            optimizer.step()
-            total_train_loss += loss.item()
-        else:
-            print("Warning: Received None loss from model forward pass.")
-    avg_train_loss = total_train_loss / len(train_loader) if len(train_loader) > 0 else 0
+        predictions.extend(batch_predictions)
 
-    retriever.eval()
-    total_val_loss = 0.0
-    with torch.inference_mode():
-        for batch in tqdm(val_loader, desc=f"Epoch {epoch+1}/{args.epochs} [Val]"):
-            loss = retriever(
-                question=batch['query'],
-                x=batch['x'],
-                edge_index=batch['edge_index'],
-                batch=batch['batch'],
-                label=batch['answer']
-            )
-            if loss is not None:
-                total_val_loss += loss.item()
-            else:
-                 print("Warning: Received None loss during validation.")
-    avg_val_loss = total_val_loss / len(val_loader) if len(val_loader) > 0 else 0
-    end_time = time.time()
-    epoch_duration = end_time - start_time
-    print(f"Epoch {epoch+1}/{args.epochs} | Duration: {epoch_duration:.2f}s | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f}")
+print("\n--- Sample Predictions vs Ground Truth ---")
+for i in range(min(len(predictions), len(test_answers), 10)):
+    print(f"Query {i+1}:")
+    print(f"  Prediction: '{predictions[i]}'")
+    print(f"  Ground Truth: '{test_answers[i]}'")
+    print()
 
-    if avg_val_loss < best_val_loss:
-        best_val_loss = avg_val_loss
-        torch.save(retriever.state_dict(), CHECKPOINT_PATH)
-        print(f"   ✨ New best validation loss. Checkpoint saved to {CHECKPOINT_PATH}")
-
-print("\n✅ Training complete.")
-
-print("\nLoading best model for final evaluation...")
-if os.path.exists(CHECKPOINT_PATH):
-    retriever.load_state_dict(torch.load(CHECKPOINT_PATH))
-    retriever.eval()
-    print("Evaluating model on the test set...")
-    predictions = []
-    with torch.inference_mode():
-        for batch in tqdm(test_loader, desc="Generating Test Predictions"):
-            batch_predictions = retriever.inference(
-            question=batch['query'],
-            x=batch['x'],
-            edge_index=batch['edge_index'],
-            batch=batch['batch']
-            )
-            predictions.extend(batch_predictions)
-            
-    print("\n--- Raw Predictions vs Answers ---")
-    for i in range(min(len(predictions), len(test_answers), 5)):
-        print(f"Pred: '{predictions[i]}'")
-        print(f"True: '{test_answers[i]}'")
-        print("-" * 10)
-
-    if len(predictions) == len(test_answers):
-        all_labels = list(task_to_idx.keys())
-        mlb = MultiLabelBinarizer(classes=all_labels)
-        valid_test_answers = [ans for ans in test_answers if ans]
-        valid_predictions = [pred for pred in predictions if pred]
-        min_len = min(len(valid_test_answers), len(valid_predictions))
-        y_true = mlb.fit_transform([ans.split(', ') for ans in valid_test_answers[:min_len]])
-        y_pred = mlb.transform([pred.split(', ') for pred in valid_predictions[:min_len]])
-        micro_f1 = f1_score(y_true, y_pred, average='micro', zero_division=0)
-        print("\n--- Final Test Results ---")
-        print(f"📊 Test Micro-F1 Score: {micro_f1:.4f}")
-        print("--------------------------")
-    else:
-        print(f"❌ Error: Number of predictions ({len(predictions)}) does not match number of test answers ({len(test_answers)}). Cannot calculate F1 score.")
+if len(predictions) == len(test_answers):
+    all_labels = list(task_to_idx.keys())
+    mlb = MultiLabelBinarizer(classes=all_labels)
+    valid_test_answers = [ans for ans in test_answers if ans]
+    valid_predictions = [pred for pred in predictions if pred]
+    min_len = min(len(valid_test_answers), len(valid_predictions))
+    y_true = mlb.fit_transform([ans.split(', ') for ans in valid_test_answers[:min_len]])
+    y_pred = mlb.transform([pred.split(', ') for pred in valid_predictions[:min_len]])
+    micro_f1 = f1_score(y_true, y_pred, average='micro', zero_division=0)
+    print("--- Inference Results ---")
+    print(f"📊 Micro-F1 Score: {micro_f1:.4f}")
+    print(f"Samples evaluated: {min_len}")
+    print("-" * 25)
 else:
-    print(f"❌ Checkpoint file not found at {CHECKPOINT_PATH}. Cannot evaluate.")
+    print(f"❌ Error: Number of predictions ({len(predictions)}) does not match number of test answers ({len(test_answers)}). Cannot calculate F1 score.")
 
-print("\nScript Finished.")
+print("\nInference Complete.")
