@@ -12,11 +12,12 @@ from torch.optim import AdamW
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.metrics import f1_score
 from tqdm import tqdm
+import psutil
 import time
 
 parser = argparse.ArgumentParser(description="Run G-Retriever Training")
-parser.add_argument('--llm_name', type=str, default='distilgpt2', help='Name of the Hugging Face language model to use.')
-parser.add_argument('--data_limit', type=int, default=200, help='Limit data samples for testing. Set to 0 for all data.')
+parser.add_argument('--llm_name', type=str, default='google/gemma-2b', help='Name of the Hugging Face language model to use.')
+parser.add_argument('--data_limit', type=int, default=0, help='Limit data samples for testing. Set to 0 for all data.')
 parser.add_argument('--epochs', type=int, default=3, help='Number of training epochs.')
 parser.add_argument('--batch_size', type=int, default=4, help='Batch size for training and validation.')
 parser.add_argument('--lr', type=float, default=1e-5, help='Learning rate for the optimizer.')
@@ -26,6 +27,11 @@ DATA_LIMIT = args.data_limit if args.data_limit > 0 else None
 RUN_DIR = './experiment_runs/run_2025-10-11_19-13-00/'
 CHECKPOINT_PATH = os.path.join(RUN_DIR, 'g_retriever_manual_checkpoint.pt')
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+def print_memory_usage(stage=""):
+    process = psutil.Process(os.getpid())
+    mem_info = process.memory_info()
+    print(f"--- Memory Usage [{stage}]: {mem_info.rss / (1024**3):.2f} GB ---")
 
 print(f"🚀 Starting the G-Retriever script (Device: {DEVICE})...")
 try:
@@ -48,6 +54,8 @@ print("\n✅ Data loaded successfully!")
 print(f"   - Graph attributes: {graph}")
 print(f"   - Graph num_features: {graph.num_features}")
 
+print_memory_usage("------After Data Loading------")
+
 print("\nPreparing text documents...")
 kept_indices = [int(i) for i in old_to_new_idx.keys()]
 nodes_df_filtered = nodes_df.iloc[kept_indices].copy()
@@ -56,6 +64,8 @@ nodes_df_filtered = nodes_df_filtered.sort_values('new_idx').set_index('new_idx'
 node_texts = nodes_df_filtered['description'].fillna('No description available.').tolist()
 assert len(node_texts) == graph.num_nodes, "Mismatch!"
 print(f"✅ Documents prepared and filtered. Final count: {len(node_texts)}")
+
+print_memory_usage("------After Document Preparation------")
 
 print(f"\nInitializing GRetriever with model: {args.llm_name}...")
 print(f"   - Pre-loading '{args.llm_name}' to count parameters...")
@@ -82,6 +92,8 @@ gnn_model = GCN(
 
 retriever = GRetriever(llm=llm_wrapper, gnn=gnn_model, mlp_out_channels=2048) # Ensure retriever is on the correct device
 print(f"✅ GRetriever model initialized successfully!")
+
+print_memory_usage("------After Model Initialization------")
 
 print("\nPreparing DataLoaders...")
 class QADataset(Dataset):
@@ -160,6 +172,8 @@ val_loader = DataLoader(val_dataset, batch_size=args.batch_size, collate_fn=simp
 test_loader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=simple_collate_fn)
 print(f"✅ DataLoaders prepared.")
 
+print_memory_usage("------After DataLoader Preparation------")
+
 optimizer = AdamW(retriever.parameters(), lr=args.lr)
 best_val_loss = float('inf')
 
@@ -168,7 +182,7 @@ for epoch in range(args.epochs):
     start_time = time.time()
     retriever.train()
     total_train_loss = 0.0
-    for batch in tqdm(train_loader, desc=f"Epoch {epoch+1}/{args.epochs} [Train]"):
+    for i, batch in enumerate(tqdm(train_loader, desc=f"Epoch {epoch+1}/{args.epochs} [Train]")):
         optimizer.zero_grad()
         loss = retriever(
             question=batch['query'],
@@ -177,6 +191,7 @@ for epoch in range(args.epochs):
             batch=batch['batch'],
             label=batch['answer']
         )
+        print_memory_usage(f"------Epoch {epoch+1} Batch {i+1} After Forward Pass------")
         if loss is not None:
             loss.backward()
             optimizer.step()
