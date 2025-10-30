@@ -109,7 +109,6 @@ def main():
         fp16=True,
         dataloader_num_workers=4,
         gradient_checkpointing=True,
-        # resume_from_checkpoint="./llm_finetune_ablation/checkpoint-XXXX",  # Uncomment and set the correct checkpoint if resuming
     )
 
     # --- 8. Formatting function ---
@@ -126,10 +125,24 @@ def main():
         peft_config=peft_config,
         formatting_func=formatting_func,
     )
-
-    # --- 10. Start Training ---
-    print("Starting fine-tuning...")
-    trainer.train()
+    
+    import glob
+    checkpoints = sorted(glob.glob("./llm_finetune_ablation/checkpoint-*"), key=lambda x: int(x.split('-')[-1]))
+    
+    print(f"Starting Finetuning Process...")
+    if checkpoints:
+        latest_checkpoint = checkpoints[-1]
+        print(f'Found Checkpoint: {latest_checkpoint}')
+        try:
+            print(f"\n\nResuming from checkpoint: {latest_checkpoint}\n\n")
+            trainer.train(resume_from_checkpoint=latest_checkpoint)
+        except Exception as e:
+            print(f"Error loading checkpoint: {e}")
+            print(f"\n\nStarting from scratch instead\n\n")
+            trainer.train()
+    else:
+        print(f"\n\nNo checkpoint found, starting from scratch\n\n")
+        trainer.train()
     print("Training finished.")
 
     # --- 11. Save the Final Model ---
