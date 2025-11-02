@@ -203,11 +203,10 @@ graph
 |------|-------|--------|-------------------|-----------|---------------|-------| -------------- | 
 | 2025-10-04 | GCN | run_2025-10-04_21-45-35 | 0.8162 | 0.0695 | 0.4004 | Standard scaler | trained_gcn.pt |
 | 2025-10-04 | GAT | run_2025-10-04_21-45-35 | 0.8203 | 0.0522 | 0.4073 | Standard scaler | trained_gat.pt |
-| 2025-10-11 | GCN | run_2025-10-11_13-12-14 | 0.8918 | 0.0720 | 0.4912 | With own scaler + BM25 features | trained_gcn_own_scaler.pt |
-| 2025-10-11 | SAGECONV | run_2025-10-11_13-12-14 | 0.9284 | 0.0306 | 0.5528 | With own scaler + BM25 features | trained_sageconv_own_scaler.pt |
-| 2025-10-11 | Graph Transformer | run_2025-10-11_13-12-14 | 0.9268 | 0.0100 | 0.6032 | With own scaler + BM25 features | trained_trans_own_scaler.pt |
+| 2025-10-11 | GCN | run_2025-10-11_13-12-14 | 0.8918 | 0.0720 | 0.4912 | Standard scaler + BM25 features | trained_gcn_own_scaler.pt |
+| 2025-10-11 | SAGECONV | run_2025-10-11_13-12-14 | 0.9284 | 0.0306 | 0.5528 | Standard scaler + BM25 features | trained_sageconv_own_scaler.pt |
+| 2025-10-11 | Graph Transformer | run_2025-10-11_13-12-14 | 0.9268 | 0.0100 | 0.6032 | Standard scaler + BM25 features + edge attributes| trained_trans_own_scaler.pt |
 
 #### Key Improvements:
 - **2025-10-11**: Significant improvement in both validation and test Micro-F1 scores
 - **BM25 Features**: Addition of BM25 features on top of BGE embeddings improved performance
-- **Custom Scaler**: Using own scaler instead of standard scaler contributed to better results
