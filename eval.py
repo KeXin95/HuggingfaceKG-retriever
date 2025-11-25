@@ -12,7 +12,6 @@ from tqdm import tqdm
 from sklearn.metrics import classification_report, accuracy_score
 from torch.utils.data import DataLoader
 
-# --- 1. Configuration ---
 BATCH_SIZE = 16
 
 EVAL_FILE = 'graph_data/task_classification_eval_set.pt'
@@ -61,12 +60,10 @@ def extract_prediction(text: str) -> int:
     return -1
 
 def main():
-    # --- 2. Load Evaluation Data ---
     print(f"Loading evaluation set from {EVAL_FILE}...")
     eval_dataset_full = torch.load(EVAL_FILE, weights_only=False)
     print(f"Loaded {len(eval_dataset_full)} total samples.")
 
-    # Re-create the same train/test split as training (seed=42)
     print("Re-creating train/test split (seed=42) to isolate test set...")
     dataset = Dataset.from_dict({
         'name': [name for name, _ in eval_dataset_full],
@@ -77,14 +74,12 @@ def main():
     eval_dataset = dataset_splits['test']
     print(f"Using {len(eval_dataset)} samples for evaluation (10% test split).")
 
-    # --- 3. Configure 4-bit Quantization ---
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
         bnb_4bit_compute_dtype=torch.bfloat16,
     )
 
-    # --- 4. Load Base Model and Tokenizer ---
     print(f"Loading base model: {BASE_MODEL_NAME}...")
     model = AutoModelForCausalLM.from_pretrained(
         BASE_MODEL_NAME,
@@ -96,13 +91,11 @@ def main():
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
 
-    # --- 5. Load Fine-Tuned Adapters ---
     print(f"\nLoading fine-tuned LoRA adapters from {FINETUNED_MODEL_PATH}...")
     model = PeftModel.from_pretrained(model, FINETUNED_MODEL_PATH)
     model = model.eval()
     print("Model loaded successfully.")
 
-    # --- 6. Run Evaluation (Batched) ---
     all_ground_truth_ids = []
     all_predicted_ids = []
     
@@ -136,7 +129,7 @@ def main():
                 **inputs, 
                 max_new_tokens=10,
                 pad_token_id=tokenizer.eos_token_id,
-                do_sample=False,  # Greedy decoding for consistency
+                do_sample=False,  
             )
         
         for i in range(len(outputs)):
@@ -148,12 +141,10 @@ def main():
             all_predicted_ids.append(predicted_id)
             all_ground_truth_ids.append(ground_truth_ids[i])
 
-    # --- 7. Report Results ---
     print("\n" + "="*80)
     print("EVALUATION COMPLETE")
     print("="*80)
     
-    # Filter out invalid predictions (-1) for cleaner report
     valid_indices = [i for i, pred in enumerate(all_predicted_ids) if pred != -1]
     valid_ground_truth = [all_ground_truth_ids[i] for i in valid_indices]
     valid_predictions = [all_predicted_ids[i] for i in valid_indices]
