@@ -1,2 +1,9 @@
 .DS_Store
 CogDL-master/*
+.venv/
+CogDL/
+__MACOSX/
+*pycache*
+archive/
+experiment_runs/
+plots/

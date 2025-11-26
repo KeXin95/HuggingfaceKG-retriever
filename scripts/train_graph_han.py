@@ -20,33 +20,21 @@ from sklearn.metrics import precision_recall_curve
 
 def tune_thresholds(y_true, y_probs):
     """
-    Finds the optimal probability threshold for each class individually
-    to maximize F1 score.
+    Finds a SINGLE threshold for ALL classes to maximize Micro-F1.
     """
-    n_classes = y_true.shape[1]
-    best_thresholds = np.full(n_classes, 0.5) # Default to 0.5
-
-    for i in range(n_classes):
-        # Skip classes that have no positive examples in this split
-        if np.sum(y_true[:, i]) == 0:
-            continue
-            
-        precision, recall, thresholds = precision_recall_curve(y_true[:, i], y_probs[:, i])
-        
-        # Calculate F1 for all thresholds
-        # +1e-10 to avoid division by zero
-        f1_scores = 2 * (precision * recall) / (precision + recall + 1e-10)
-        
-        # Get index of best F1
-        best_idx = np.argmax(f1_scores)
-        
-        # Determine best threshold (handling edge case where best_idx is last)
-        if best_idx < len(thresholds):
-            best_thresholds[i] = thresholds[best_idx]
-        else:
-            best_thresholds[i] = 0.5
-            
-    return best_thresholds
+    # Flatten everything to treat it as one giant binary classification problem
+    y_true_flat = y_true.flatten()
+    y_probs_flat = y_probs.flatten()
+    
+    precision, recall, thresholds = precision_recall_curve(y_true_flat, y_probs_flat)
+    
+    # Calculate F1 for all global thresholds
+    f1_scores = 2 * (precision * recall) / (precision + recall + 1e-10)
+    
+    best_idx = np.argmax(f1_scores)
+    best_threshold = thresholds[best_idx] if best_idx < len(thresholds) else 0.5
+    
+    return best_threshold
 
 
 # --- Set Random Seed ---
@@ -308,12 +296,21 @@ def analyze_long_tail_performance(train_y, test_per_class_f1, save_path="f1_vs_s
 
 
 # --- Training Logic ---
-def train_session(seed, args, device):
+def train_session(seed, args, device, data):
     print(f"\n--- Starting Run with Seed {seed} ---")
     set_seed(seed)
+
+    # --- FEATURE TOGGLE LOGIC ---
+    if args.exclude_bm25:
+        # Keep only the first 768 columns (BGE), drop the rest (BM25)
+        # Check to ensure we don't slice if it's already sliced (safety check)
+        if data.x.shape[1] > 768:
+            data.x = data.x[:, :768]
+
+    # ----------------------------
     
     # Reload data
-    data = torch.load(args.graph_path, weights_only=False)
+    # data = torch.load(args.graph_path, weights_only=False)
 
     # Preprocessing
     if args.model_type == 'gat':
@@ -373,55 +370,68 @@ def train_session(seed, args, device):
         loss.backward()
         optimizer.step()
         
-        # Note: We ignore the extra returns (y_true, y_probs) during training loop
-        _, _, val_macro, _, _, _, _ = evaluate(model, data, data.val_mask, criterion, args.model_type)
-        
-        # Early stopping based on Macro F1 (standard)
-        if val_macro > best_val_metric:
-            best_val_metric = val_macro
-            patience_counter = 0
-            best_state = model.state_dict()
-        else:
-            patience_counter += 1
-            if patience_counter >= patience:
-                break
+        if epoch % 10 == 0:
+            _, _, val_macro, _, _, _, _ = evaluate(model, data, data.val_mask, criterion, args.model_type)
+            
+            if val_macro > best_val_metric:
+                best_val_metric = val_macro
+                patience_counter = 0
+                best_state = model.state_dict()
+            else:
+                # CRITICAL FIX: Increment by 10 (the stride), not 1
+                patience_counter += 10 
+                
+                if patience_counter >= patience:
+                    print(f"Early stopping at epoch {epoch}")
+                    break
     
 # --- FINAL EVALUATION & THRESHOLD TUNING ---
     model.load_state_dict(best_state)
     
-    # 1. Get raw probabilities from Validation Set
-    _, _, _, _, _, val_true, val_probs = evaluate(model, data, data.val_mask, criterion, args.model_type)
+    # 1. Evaluate on Validation Set
+    # CHANGED: We now capture val_micro, val_macro, val_prauc instead of using underscores (_)
+    _, val_micro, val_macro, val_prauc, _, val_true, val_probs = evaluate(
+        model, data, data.val_mask, criterion, args.model_type
+    )
     
     # 2. Calculate Optimal Thresholds based on Validation Data
-    # (We do NOT use Test data here to avoid leakage)
     optimal_thresholds = tune_thresholds(val_true, val_probs)
     
     # 3. Evaluate on Test Set using Standard (0.5) Thresholds
-    _, test_micro, test_macro, test_prauc, test_per_class_f1, _, _ = evaluate(
+    test_loss_std, test_micro_std, test_macro_std, test_prauc_std, test_per_class_f1_std, _, _ = evaluate(
         model, data, data.test_mask, criterion, args.model_type, thresholds=None
     )
-    
+
     # 4. Evaluate on Test Set using Optimized Thresholds
-    _, opt_micro, opt_macro, opt_prauc, opt_per_class_f1, _, _ = evaluate(
+    test_loss_opt, test_micro_opt, test_macro_opt, test_prauc_opt, test_per_class_f1_opt, _, _ = evaluate(
         model, data, data.test_mask, criterion, args.model_type, thresholds=optimal_thresholds
     )
+
+    print(f"Seed {seed} [VAL] Macro: {val_macro:.4f} | Micro: {val_micro:.4f} | "
+      f"[TEST] Macro: {test_macro_std:.4f} | Micro: {test_micro_std:.4f} | "
+      f"PR-AUC: {test_prauc_std:.4f} | Loss: {test_loss_std:.4f}")
     
-    print(f"Seed {seed} Standard -> Macro-F1: {test_macro:.4f} | Micro-F1: {test_micro:.4f} | PR-AUC: {test_prauc:.4f}")
-    print(f"Seed {seed} OPTIMIZED -> Macro-F1: {opt_macro:.4f} (Diff: {opt_macro - test_macro:+.4f}) | Micro-F1: {opt_micro:.4f} (Diff: {opt_micro - test_micro:+.4f})")
-    
-    # Save visualization for seed 42 (Using the OPTIMIZED f1 scores)
+    # Save visualization for seed 42
     if seed == 42:
         torch.save(best_state, args.save_path)
         save_path = f"smoking_gun_{args.model_type}{'_FOCAL' if args.use_focal else ''}.png"
-        # We pass the optimized per-class F1 scores to the plot
-        analyze_long_tail_performance(data.y[data.train_mask], opt_per_class_f1, save_path=save_path)
+        analyze_long_tail_performance(data.y[data.train_mask], test_per_class_f1_opt, save_path=save_path)
         
     return {
-        "macro_f1": opt_macro, # We return the Optimized Macro F1 now!
-        "standard_macro_f1": test_macro,
-        "micro_f1": opt_micro,  # Add optimized Micro F1
-        "standard_micro_f1": test_micro,  # Add standard Micro F1 (optional, for consistency)
-        "pr_auc": test_prauc
+        # --- VALIDATION METRICS (Standard 0.5 Threshold) ---
+        "val_macro_f1": val_macro,
+        "val_micro_f1": val_micro,
+        "val_pr_auc":   val_prauc,
+
+        # --- TEST METRICS (Optimized Threshold) ---
+        "test_macro_opt": test_macro_opt,
+        "test_micro_opt": test_micro_opt,
+        
+        # --- TEST METRICS (Standard 0.5 Threshold) ---
+        "test_macro_std": test_macro_std,
+        "test_micro_std": test_micro_std,
+        "test_prauc_std": test_prauc_std,
+        "test_loss_std": test_loss_std,  # Add this
     }
 
 if __name__ == "__main__":
@@ -431,17 +441,31 @@ if __name__ == "__main__":
     parser.add_argument('--save_path', type=str, default='best_model.pt')
     parser.add_argument('--scaler_path', type=str, default='scaler.gz') # kept for compatibility
     parser.add_argument('--use_focal', action='store_true', help="Use Focal Loss instead of BCE")
+    parser.add_argument('--exclude_bm25', action='store_true', help="Drop the last 54 BM25 features, using only the first 768 BGE embeddings.")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
     
-    SEEDS = [42, 100, 2023, 123, 999, 41, 99, 2022, 122, 998]
-    
-    # Collect results
-    results_list = [train_session(seed, args, device) for seed in SEEDS]
+    SEEDS = [42, 100, 2023, 123, 999] #, 41, 99, 2022, 122, 998]
 
-    # Aggregate
+    # 1. Load Data ONCE
+    print(f"Loading data from {args.graph_path}...")
+    raw_data = torch.load(args.graph_path, weights_only=False)
+
+    results_list = []
+
+    # 2. Single Loop to Run and Collect
+    for seed in SEEDS:
+        # Clone to ensure thread safety / no leakage between runs
+        # (Though we re-process inside, this is a good safety habit)
+        current_data = raw_data.clone()
+        
+        # Pass the pre-loaded data into the function
+        result = train_session(seed, args, device, data=current_data)
+        results_list.append(result)
+
+    # 3. Aggregate
     agg_results = defaultdict(list)
     for res in results_list:
         for k, v in res.items():
@@ -450,7 +474,11 @@ if __name__ == "__main__":
     print("\n" + "="*40)
     print(f"Final Aggregated Results ({len(SEEDS)} runs)")
     print(f"Model: {args.model_type.upper()} | Loss: {'Focal' if args.use_focal else 'BCE'}")
+    print(f"Features: {'BGE Only (768)' if args.exclude_bm25 else 'BGE + BM25 (822)'}")
     print("-" * 40)
-    for metric, values in agg_results.items():
-        print(f"{metric.upper().ljust(10)}: {np.mean(values):.4f} ± {np.std(values):.4f}")
+    
+    # Sort keys to keep Val and Test grouped together in the output
+    for metric in sorted(agg_results.keys()):
+        values = agg_results[metric]
+        print(f"{metric.upper().ljust(20)}: {np.mean(values):.4f} ± {np.std(values):.4f}")
     print("="*40)
