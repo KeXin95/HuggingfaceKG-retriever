@@ -16,6 +16,9 @@ from torch_geometric.nn import GAT
 from torch_geometric.llm.models import LLM, GRetriever
 from typing import List, Optional
 
+# ==========================================
+# 1. Model Definition
+# ==========================================
 class MyGraphEncoder(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, edge_dim):
         super().__init__()
@@ -30,6 +33,9 @@ class MyGraphEncoder(torch.nn.Module):
         x = self.conv2(x, edge_index, edge_attr=edge_attr)
         return x
 
+# ==========================================
+# 2. Configuration
+# ==========================================
 MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.1"
 NEW_MODEL_NAME = "g_retriever_multilabel" 
 MAX_SEQ_LENGTH = 2048
@@ -66,6 +72,9 @@ TASK_LIST = [
 TASK_LIST_PROMPT = f"""Here is a list of possible tasks: {TASK_LIST}.
 Please predict all relevant tasks for this model. Output only the indices, separated by commas."""
 
+# ==========================================
+# 3. Data Loading (THE FIX)
+# ==========================================
 def load_full_data():
     print("Loading all data sources...")
     print(f"Loading graph from: {GRAPH_FILE}")
@@ -77,24 +86,25 @@ def load_full_data():
     x = raw_graph.x.float()
     
     if isinstance(raw_graph.edge_index, tuple):
-        print("  Converting edge_index tuple to tensor...")
         src, dst = raw_graph.edge_index
-        
         if isinstance(src, np.ndarray): src = torch.from_numpy(src)
         if isinstance(dst, np.ndarray): dst = torch.from_numpy(dst)
-
         src = src.long() if isinstance(src, torch.Tensor) else torch.tensor(src).long()
         dst = dst.long() if isinstance(dst, torch.Tensor) else torch.tensor(dst).long()
-        
         edge_index = torch.stack([src, dst], dim=0)
     elif isinstance(raw_graph.edge_index, torch.Tensor):
         edge_index = raw_graph.edge_index.long()
     else:
         raise TypeError(f"Unknown edge_index type: {type(raw_graph.edge_index)}")
 
-    graph = Data(x=x, edge_index=edge_index)
+    # Attach masks to the graph object so we can access them
+    graph = Data(
+        x=x, 
+        edge_index=edge_index,
+        train_mask=raw_graph.train_mask,
+        test_mask=raw_graph.test_mask
+    )
     graph.num_nodes = raw_graph.num_nodes
-    
     del raw_graph
     print("  Clean PyG graph created.")
 
@@ -107,25 +117,46 @@ def load_full_data():
     
     new_to_old_idx = {value: int(key) for key, value in old_to_new_idx_dict.items()}
     
-    dataset_list = []
+    train_list = []
+    test_list = []
+    
+    print("Filtering data using Graph Masks (Allowing ALL node types)...")
+    
     for new_idx, old_idx in new_to_old_idx.items():
         if new_idx >= graph.num_nodes: continue
+        
         node_data = nodes_df.iloc[old_idx]
         labels = node_data['y']
         
-        if node_data['type'] == 'model' and len(labels) > 0:
-            dataset_list.append({
+        # --- THE FIX IS HERE ---
+        # We removed: node_data['type'] == 'model'
+        # We keep: len(labels) > 0 (We still need ground truth to train/eval)
+        if len(labels) > 0:
+            
+            data_item = {
                 "name": node_data['id'],
                 "label": labels,
                 "graph_id": new_idx
-            })
+            }
+
+            # Check the MASKS from the graph file
+            if graph.train_mask[new_idx].item():
+                train_list.append(data_item)
+            elif graph.test_mask[new_idx].item():
+                test_list.append(data_item)
             
-    dataset = Dataset.from_list(dataset_list)
-    dataset_splits = dataset.train_test_split(test_size=0.1, seed=42)
+    print(f"  Train Samples: {len(train_list)}")
+    print(f"  Test Samples:  {len(test_list)}")
+
+    train_dataset = Dataset.from_list(train_list)
+    eval_dataset = Dataset.from_list(test_list)
     
     print("Graph loaded and kept on CPU.")
-    return graph, dataset_splits['train'], dataset_splits['test']
+    return graph, train_dataset, eval_dataset
 
+# ==========================================
+# 4. Collate Function
+# ==========================================
 def create_collate_fn(graph):
     _graph = graph
     
@@ -152,6 +183,9 @@ def create_collate_fn(graph):
         
     return collate_fn
 
+# ==========================================
+# 5. Training Loop & Helpers
+# ==========================================
 def save_checkpoint(model, step, base_dir):
     ckpt_dir = os.path.join(base_dir, f"checkpoint-{step}")
     os.makedirs(ckpt_dir, exist_ok=True)
@@ -165,6 +199,7 @@ def save_checkpoint(model, step, base_dir):
         model.llm.llm.save_pretrained(f"{ckpt_dir}/lora_adapters")
 
 def main_train():
+    # Load data using the NEW mask-based function
     graph, train_dataset, eval_dataset = load_full_data()
     
     global BGE_EMBED_DIM

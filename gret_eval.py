@@ -78,7 +78,13 @@ def load_data():
     else:
         edge_index = raw_graph.edge_index.long()
         
-    graph = Data(x=x, edge_index=edge_index)
+    graph = Data(
+        x=x, 
+        edge_index=edge_index,
+        train_mask=raw_graph.train_mask,
+        val_mask=getattr(raw_graph, 'val_mask', None),
+        test_mask=raw_graph.test_mask
+    )
     graph.num_nodes = raw_graph.num_nodes
     del raw_graph
 
@@ -87,21 +93,40 @@ def load_data():
         old_to_new_idx_dict = json.load(f)
     new_to_old_idx = {value: int(key) for key, value in old_to_new_idx_dict.items()}
     
-    dataset_list = []
+    train_list = []
+    val_list = []
+    test_list = []
+
+    print("Filtering data using Graph Masks (Allowing ALL node types)...")
     for new_idx, old_idx in new_to_old_idx.items():
         if new_idx >= graph.num_nodes: continue
         node_data = nodes_df.iloc[old_idx]
         labels = node_data['y']
-        if node_data['type'] == 'model' and len(labels) > 0:
-            dataset_list.append({
+        
+        if len(labels) > 0:
+            data_item = {
                 "name": node_data['id'],
                 "label": labels,
                 "graph_id": new_idx
-            })
+            }
             
-    dataset = Dataset.from_list(dataset_list)
-    splits = dataset.train_test_split(test_size=0.1, seed=42)
-    return graph, splits['train'], splits['test']
+            # Bucket into splits
+            if graph.train_mask[new_idx].item():
+                train_list.append(data_item)
+            elif graph.test_mask[new_idx].item():
+                test_list.append(data_item)
+            elif graph.val_mask is not None and graph.val_mask[new_idx].item():
+                val_list.append(data_item)
+            
+    print(f"  Train Samples (for Stats): {len(train_list)}")
+    print(f"  Val Samples:               {len(val_list)}")
+    print(f"  Test Samples (for Eval):   {len(test_list)}")
+
+    train_dataset = Dataset.from_list(train_list)
+    val_dataset = Dataset.from_list(val_list) if val_list else None
+    test_dataset = Dataset.from_list(test_list)
+    
+    return graph, train_dataset, val_dataset, test_dataset
 
 def create_collate_fn(graph):
     _graph = graph
@@ -126,9 +151,6 @@ def create_collate_fn(graph):
     return collate_fn
 
 def load_checkpoint(base_dir, checkpoint_name, input_dim):
-    """
-    Handles loading from root or sub-folders like 'checkpoint-5000'
-    """
     print(f"\n--- Loading Checkpoint: {checkpoint_name} ---")
     
     if checkpoint_name == "final":
@@ -161,7 +183,6 @@ def parse_prediction(text):
     return [int(n) for n in nums if int(n) < NUM_CLASSES]
 
 def to_multi_hot(indices_list, num_classes):
-    """Converts a list of lists of indices into a multi-hot tensor."""
     batch_size = len(indices_list)
     multi_hot = torch.zeros((batch_size, num_classes))
     for i, indices in enumerate(indices_list):
@@ -171,9 +192,6 @@ def to_multi_hot(indices_list, num_classes):
     return multi_hot
 
 def analyze_long_tail_performance(train_counts, test_y_true, test_y_pred, save_name):
-    """
-    Generates the 'Smoking Gun' scatter plot.
-    """
     print("\n=== Long-Tail Distribution Analysis ===")
     
     per_class_f1 = f1_score(test_y_true, test_y_pred, average=None, zero_division=0)
@@ -209,9 +227,6 @@ def analyze_long_tail_performance(train_counts, test_y_true, test_y_pred, save_n
     print(f"Visualization saved to {save_name}_smoking_gun.png")
 
 def plot_class_breakdown(df, save_name):
-    """
-    Plots a bar chart of the Top 10 and Bottom 10 performing classes.
-    """
     top_10 = df.head(10)
     bottom_10 = df.tail(10)
     
@@ -239,11 +254,24 @@ def main():
     parser.add_argument('--ckpt', type=str, default='final', 
                         help="Folder name of checkpoint (e.g. 'checkpoint-10000') or 'final'")
     parser.add_argument('--saved_model_dir', type=str, default='g_retriever_multilabel')
+    parser.add_argument('--split', type=str, default='test', choices=['val', 'test'],
+                        help="Which split to evaluate on (val or test)")
     args = parser.parse_args()
 
-    graph, train_dataset, test_dataset = load_data()
+    graph, train_dataset, val_dataset, test_dataset = load_data()
     
-    print("Calculating training class frequencies (for Smoking Gun plot)...")
+    if args.split == 'val':
+        target_dataset = val_dataset
+        print("\n[INFO] Evaluating on VALIDATION set.")
+    else:
+        target_dataset = test_dataset
+        print("\n[INFO] Evaluating on TEST set.")
+
+    if target_dataset is None or len(target_dataset) == 0:
+        print(f"[ERROR] The {args.split} dataset is empty! Check your masks.")
+        return
+
+    print("Calculating training class frequencies...")
     train_counts = np.zeros(NUM_CLASSES)
     for item in tqdm(train_dataset, desc="Scanning Train Data"):
         for label in item['label']:
@@ -251,9 +279,9 @@ def main():
             
     model = load_checkpoint(args.saved_model_dir, args.ckpt, graph.x.shape[1])
     
-    print(f"\nRunning Inference on TEST set using {args.ckpt}...")
+    print(f"\nRunning Inference on {args.split.upper()} set using {args.ckpt}...")
     collate_fn = create_collate_fn(graph)
-    loader = DataLoader(test_dataset, batch_size=8, collate_fn=collate_fn, num_workers=0)
+    loader = DataLoader(target_dataset, batch_size=8, collate_fn=collate_fn, num_workers=0)
     
     all_preds_indices = []
     all_true_indices = []
@@ -291,14 +319,14 @@ def main():
         )
 
     print("\n" + "="*40)
-    print(f"RESULTS FOR: {args.ckpt}")
+    print(f"RESULTS FOR: {args.ckpt} | Split: {args.split.upper()}")
     print("-" * 40)
     print(f"Micro F1:   {micro_f1:.4f}")
     print(f"Macro F1:   {macro_f1:.4f}")
-    print(f"PR-AUC:     {pr_auc:.4f} (Approximated via Hard Preds)")
+    print(f"PR-AUC:     {pr_auc:.4f} (Approx via Hard Preds)")
     print("="*40)
 
-    analyze_long_tail_performance(train_counts, y_true, y_pred, save_name=args.ckpt)
+    analyze_long_tail_performance(train_counts, y_true, y_pred, save_name=f"{args.ckpt}_{args.split}")
 
     print("\nGenerating Per-Class Breakdown...")
     per_class_f1 = f1_score(y_true, y_pred, average=None, zero_division=0)
@@ -311,11 +339,11 @@ def main():
     
     df_results = df_results.sort_values(by="F1_Score", ascending=False)
     
-    csv_name = f"{args.ckpt}_class_performance.csv"
+    csv_name = f"{args.ckpt}_{args.split}_class_performance.csv"
     df_results.to_csv(csv_name, index=False)
     print(f"Detailed CSV saved to {csv_name}")
     
-    plot_class_breakdown(df_results, save_name=args.ckpt)
+    plot_class_breakdown(df_results, save_name=f"{args.ckpt}_{args.split}")
 
 if __name__ == "__main__":
     main()
