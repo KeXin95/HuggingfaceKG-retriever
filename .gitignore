@@ -7,3 +7,6 @@ __MACOSX/
 archive/
 experiment_runs/
 plots/
+# Exclude old training scripts
+scripts/train_graph.py
+scripts/train_graph_han.py
