@@ -6,23 +6,23 @@ This directory contains all model training and evaluation code for the Hugging F
 
 ```
 models/
-├── model_utils.py       # Shared GNN model definitions (GCN, GAT, SAGE, etc.)
-├── utils.py             # Shared utilities (graph loading, training helpers)
-├── train.py             # Main GNN training script
-├── eval.py              # Evaluate fine-tuned LLM models for task classification
-├── examine_eval.py      # Examine evaluation results from JSON files
-├── plot_eval.py         # Create visualizations from evaluation results
-├── data/                # Training results and visualizations
-│   ├── results.csv
-│   ├── micro_f1_comparison.png
-│   └── pr_auc_ranking.png
-├── gretriever-pending/  # LLM + Graph hybrid (GRetriever)
-│   ├── gretriever.py    # GRetriever implementation
+├── model_utils.py           # Shared GNN model definitions (GCN, GAT, SAGE, etc.)
+├── utils.py                 # Shared utilities (graph loading, training helpers)
+├── eval_helper.py           # Helper functions for evaluation
+├── train.py                 # Main GNN training script
+├── inference_graph_to_df.py # Run inference and export predictions to DataFrame
+├── model_config_example.json # Example configuration file for inference
+├── eval.py                  # Evaluate fine-tuned LLM models for task classification
+├── examine_eval.py          # Examine evaluation results from JSON files
+├── plot_eval.py             # Create visualizations from evaluation results
+├── results_inferences/      # Inference output directory (generated)
+├── gretriever-pending/      # LLM + Graph hybrid (GRetriever)
+│   ├── gretriever.py        # GRetriever implementation
 │   ├── finetune_llm_taskclass.py  # Fine-tune for task classification
 │   ├── finetune_llm_linkpred.py    # Fine-tune for link prediction
-│   ├── gret_eval.py     # GRetriever evaluation script
+│   ├── gret_eval.py         # GRetriever evaluation script
 │   └── create_classification_evalset.py
-└── README.md            # This file
+└── README.md                # This file
 ```
 
 ## Shared Components
@@ -68,6 +68,38 @@ python train.py \
 - `--use_focal`: Use Focal Loss for class imbalance
 - `--exclude_bm25`: Use only BGE embeddings (drop BM25 features)
 
+### Inference
+
+Run inference on a trained model to generate predictions for all nodes in the graph:
+
+```bash
+cd models
+
+python inference_graph_to_df.py \
+    --run_id run_2025-10-11_13-12-14 \
+    --config_path model_config_example.json \
+    --model_type GATV2 \
+    --output_path results_inferences/GATV2_predictions.parquet
+```
+
+**Arguments**:
+- `--run_id`: Experiment run ID (directory name in `experiment_runs/`)
+- `--config_path`: Path to JSON config file with model configurations
+- `--model_type`: Model type to use (`GCN`, `GAT`, `GATV2`, `TRANS`, `SAGE`)
+- `--output_path`: Output path for the parquet file with predictions
+
+**Configuration File** (`model_config_example.json`):
+The config file should contain model-specific settings:
+- `model_type`: Model architecture name
+- `model_config`: Hyperparameters (hidden_size, dropout, etc.)
+- `scaler_filename`: Path to the scaler file
+- `model_filename`: Path to the trained model checkpoint
+
+**Output**:
+The script generates a Parquet file containing:
+- Node IDs and metadata
+- Predicted task probabilities for all 54 task classes
+- Top-k predicted tasks for each node
 
 #### Performance Results
 
@@ -88,11 +120,11 @@ All results are averaged over 10 random seeds with mean ± standard deviation re
 
 #### Performance Visualizations
 
-![Micro-F1 Comparison](data/micro_f1_comparison.png)
+![Micro-F1 Comparison](../../data/micro_f1_comparison.png)
 
 *Comparison of Test Micro-F1 scores across different models and configurations*
 
-![PR-AUC Ranking](data/pr_auc_ranking.png)
+![PR-AUC Ranking](../../data/pr_auc_ranking.png)
 
 *Ranking of models by Test PR-AUC scores*
 

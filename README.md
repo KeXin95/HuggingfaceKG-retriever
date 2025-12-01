@@ -77,7 +77,10 @@ HuggingfaceKG-retriever/
 │   ├── model_merge_model.json
 │   ├── model_quantized_model.json
 │   └── model_adapter_model.json
-│
+├── data/                    # Training results and visualizations
+│   ├── results.csv
+│   ├── micro_f1_comparison.png
+│   └── pr_auc_ranking.png
 ├── requirements.txt                  # Python dependencies
 └── README.md                         # This file
 ```
