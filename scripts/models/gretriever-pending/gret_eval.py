@@ -133,9 +133,17 @@ def create_collate_fn(graph):
         data_list = []
         
         for item in batch:
+            raw_labels = item['label']
+            
+            if len(raw_labels) == NUM_CLASSES: 
+                active_indices = [i for i, val in enumerate(raw_labels) if val == 1]
+            else:
+                active_indices = raw_labels
+            
             prompt = f"{TASK_LIST_PROMPT}\n\nFor this node, here's the info:\n{item['name']}"
             questions.append(f"[INST] {prompt} [/INST]")
-            true_labels.append(item['label']) 
+            
+            true_labels.append(active_indices) 
             
             node_subset, edge_index_sub, _, _ = k_hop_subgraph(
                 item['graph_id'], num_hops=1, edge_index=_graph.edge_index, 
@@ -271,8 +279,16 @@ def main():
     print("Calculating training class frequencies...")
     train_counts = np.zeros(NUM_CLASSES)
     for item in tqdm(train_dataset, desc="Scanning Train Data"):
-        for label in item['label']:
-            train_counts[label] += 1
+        
+        raw_labels = item['label']
+        
+        if len(raw_labels) == NUM_CLASSES:
+            active_indices = [i for i, val in enumerate(raw_labels) if val == 1]
+        else:
+            active_indices = raw_labels
+        
+        for label_idx in active_indices:
+            train_counts[label_idx] += 1
             
     model = load_checkpoint(args.saved_model_dir, args.ckpt, graph.x.shape[1])
     
@@ -290,7 +306,7 @@ def main():
                 x=graph_batch.x,
                 edge_index=graph_batch.edge_index,
                 batch=graph_batch.batch,
-                max_out_tokens=20 
+                max_out_tokens=128
             )
             
             for pred_text, true_label in zip(preds_text, labels):

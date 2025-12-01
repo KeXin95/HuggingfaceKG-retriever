@@ -16,9 +16,6 @@ from torch_geometric.nn import GAT
 from torch_geometric.llm.models import LLM, GRetriever
 from typing import List, Optional
 
-# ==========================================
-# 1. Model Definition
-# ==========================================
 class MyGraphEncoder(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels, edge_dim):
         super().__init__()
@@ -33,12 +30,8 @@ class MyGraphEncoder(torch.nn.Module):
         x = self.conv2(x, edge_index, edge_attr=edge_attr)
         return x
 
-# ==========================================
-# 2. Configuration
-# ==========================================
 MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.1"
 NEW_MODEL_NAME = "g_retriever_multilabel" 
-MAX_SEQ_LENGTH = 2048
 BASE_EXP_DIR = 'experiment_runs/run_2025-10-11_19-13-00' 
 GRAPH_FILE = 'graph_data/final_graph.pt'
 NODES_DF_PATH = os.path.join(BASE_EXP_DIR, 'nodes_df.pkl')
@@ -69,12 +62,14 @@ TASK_LIST = [
     'mask-generation', 'keypoint-detection', 'zero-shot-object-detection', 
     'video-to-video'
 ]
-TASK_LIST_PROMPT = f"""Here is a list of possible tasks: {TASK_LIST}.
-Please predict all relevant tasks for this model. Output only the indices, separated by commas."""
 
-# ==========================================
-# 3. Data Loading (THE FIX)
-# ==========================================
+formatted_task_list = "\n".join([f"{i}: {task}" for i, task in enumerate(TASK_LIST)])
+TASK_LIST_PROMPT = f"""Below is the list of valid tasks and their corresponding IDs:
+{formatted_task_list}
+
+Please predict the relevant tasks for this model.
+Output ONLY a comma-separated list of the corresponding IDs (e.g. 0, 5, 12)."""
+
 def load_full_data():
     print("Loading all data sources...")
     print(f"Loading graph from: {GRAPH_FILE}")
@@ -82,7 +77,6 @@ def load_full_data():
     raw_graph = torch.load(GRAPH_FILE, weights_only=False)
     
     print("Converting raw graph to clean PyG Data object...")
-    
     x = raw_graph.x.float()
     
     if isinstance(raw_graph.edge_index, tuple):
@@ -92,12 +86,9 @@ def load_full_data():
         src = src.long() if isinstance(src, torch.Tensor) else torch.tensor(src).long()
         dst = dst.long() if isinstance(dst, torch.Tensor) else torch.tensor(dst).long()
         edge_index = torch.stack([src, dst], dim=0)
-    elif isinstance(raw_graph.edge_index, torch.Tensor):
-        edge_index = raw_graph.edge_index.long()
     else:
-        raise TypeError(f"Unknown edge_index type: {type(raw_graph.edge_index)}")
+        edge_index = raw_graph.edge_index.long()
 
-    # Attach masks to the graph object so we can access them
     graph = Data(
         x=x, 
         edge_index=edge_index,
@@ -106,21 +97,16 @@ def load_full_data():
     )
     graph.num_nodes = raw_graph.num_nodes
     del raw_graph
-    print("  Clean PyG graph created.")
-
-    print(f"Loading nodes_df from: {NODES_DF_PATH}")
-    nodes_df = pd.read_pickle(NODES_DF_PATH)
     
-    print(f"Loading bridge file from: {BRIDGE_FILE}")
+    nodes_df = pd.read_pickle(NODES_DF_PATH)
     with open(BRIDGE_FILE, 'r') as f:
         old_to_new_idx_dict = json.load(f)
-    
     new_to_old_idx = {value: int(key) for key, value in old_to_new_idx_dict.items()}
     
     train_list = []
     test_list = []
     
-    print("Filtering data using Graph Masks (Allowing ALL node types)...")
+    print("Filtering data using Graph Masks...")
     
     for new_idx, old_idx in new_to_old_idx.items():
         if new_idx >= graph.num_nodes: continue
@@ -128,18 +114,13 @@ def load_full_data():
         node_data = nodes_df.iloc[old_idx]
         labels = node_data['y']
         
-        # --- THE FIX IS HERE ---
-        # We removed: node_data['type'] == 'model'
-        # We keep: len(labels) > 0 (We still need ground truth to train/eval)
         if len(labels) > 0:
-            
             data_item = {
                 "name": node_data['id'],
                 "label": labels,
                 "graph_id": new_idx
             }
 
-            # Check the MASKS from the graph file
             if graph.train_mask[new_idx].item():
                 train_list.append(data_item)
             elif graph.test_mask[new_idx].item():
@@ -151,12 +132,8 @@ def load_full_data():
     train_dataset = Dataset.from_list(train_list)
     eval_dataset = Dataset.from_list(test_list)
     
-    print("Graph loaded and kept on CPU.")
     return graph, train_dataset, eval_dataset
 
-# ==========================================
-# 4. Collate Function
-# ==========================================
 def create_collate_fn(graph):
     _graph = graph
     
@@ -166,7 +143,15 @@ def create_collate_fn(graph):
         data_list = []
         
         for item in batch:
-            label_string = ", ".join(map(str, item['label']))
+            raw_labels = item['label']
+            
+            if len(raw_labels) == len(TASK_LIST): 
+                active_indices = [i for i, val in enumerate(raw_labels) if val == 1]
+            else:
+                active_indices = raw_labels
+
+            label_string = ", ".join(map(str, active_indices))
+            
             prompt = f"{TASK_LIST_PROMPT}\n\nFor this node, here's the info:\n{item['name']}"
             
             questions.append(f"[INST] {prompt} [/INST]")
@@ -183,9 +168,6 @@ def create_collate_fn(graph):
         
     return collate_fn
 
-# ==========================================
-# 5. Training Loop & Helpers
-# ==========================================
 def save_checkpoint(model, step, base_dir):
     ckpt_dir = os.path.join(base_dir, f"checkpoint-{step}")
     os.makedirs(ckpt_dir, exist_ok=True)
@@ -199,12 +181,10 @@ def save_checkpoint(model, step, base_dir):
         model.llm.llm.save_pretrained(f"{ckpt_dir}/lora_adapters")
 
 def main_train():
-    # Load data using the NEW mask-based function
     graph, train_dataset, eval_dataset = load_full_data()
     
     global BGE_EMBED_DIM
     BGE_EMBED_DIM = graph.x.shape[1]
-    print(f"Detected BGE_EMBED_DIM: {BGE_EMBED_DIM}")
     
     print(f"Loading base model: {MODEL_NAME}...")
     llm = LLM(model_name=MODEL_NAME, n_gpus=1)
@@ -223,16 +203,12 @@ def main_train():
 
     train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True, 
                             collate_fn=collate_fn, num_workers=0)
-    eval_loader = DataLoader(eval_dataset, batch_size=4, shuffle=False, 
-                           collate_fn=collate_fn, num_workers=0)
     
     print("\nStarting Training...")
     model.train()
     
-    for epoch in range(1):
-        total_loss = 0
+    for epoch in range(5):
         pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}")
-        
         for step, (questions, labels, graph_batch) in enumerate(pbar):
             optimizer.zero_grad()
             loss = model(
@@ -244,7 +220,6 @@ def main_train():
             )
             loss.backward()
             optimizer.step()
-            total_loss += loss.item()
             pbar.set_postfix({"loss": loss.item()})
             
             if (step + 1) % 5000 == 0:
@@ -258,7 +233,6 @@ def main_train():
     torch.save(model.projector.state_dict(), f"./{NEW_MODEL_NAME}/projector.pt")
     
     print("Merging LoRA adapters...")
-    
     if hasattr(model, 'llm_generator'):
         target_model = model.llm_generator
     else:
@@ -267,9 +241,7 @@ def main_train():
     if hasattr(target_model, "merge_and_unload"):
         merged_model = target_model.merge_and_unload()
         merged_model.save_pretrained(f"./{NEW_MODEL_NAME}/lora_adapters")
-        print("Merged model saved.")
     else:
-        print("WARNING: Could not find merge_and_unload. Saving adapters only.")
         target_model.save_pretrained(f"./{NEW_MODEL_NAME}/lora_adapters")
         
     model.llm.tokenizer.save_pretrained(f"./{NEW_MODEL_NAME}/lora_adapters")
