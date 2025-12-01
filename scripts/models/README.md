@@ -6,9 +6,11 @@ This directory contains all model training and evaluation code for the Hugging F
 
 ```
 models/
-├── model_utils.py           # Shared GNN model definitions (GCN, GAT, SAGE, etc.)
-├── utils.py                 # Shared utilities (graph loading, training helpers)
-├── train.py                 # Main GNN training script
+├── model_utils.py                # Shared GNN model definitions (GCN, GAT, SAGE, etc.)
+├── utils.py                      # Shared utilities (graph loading, training helpers)
+├── train.py                      # Main GNN training script
+├── g_retrieval_final.py          # Main script to finetune gretrieval with qwen2.5 3b instruct
+├── g_retrieval_eval_final.py     # Main script to evaluate gretrieval with qwen2.5 3b instruct
 ├── gretriever-pending/      # LLM + Graph hybrid (GRetriever)
 │   ├── gretriever.py        # GRetriever implementation
 │   ├── finetune_llm_taskclass.py  # Fine-tune for task classification
@@ -101,7 +103,7 @@ The script generates a Parquet file containing:
 
 All results are averaged over 10 random seeds with mean ± standard deviation reported.
 
-| Model | Loss | Features | Val Micro-F1 | Test Micro-F1 | Test Macro-F1 | Test PR-AUC | Head F1 (Top 10) | Tail F1 (Rest) | Gap |
+| Model | Loss | Features | Val Micro-F1 | Test Micro-F1 | Test Macro-F1 | Test PR-AUC | Test Head F1 (Top 10) | Test Tail F1 (Rest) | Test Gap |
 |-------|------|----------|--------------|---------------|---------------|-------------|------------------|----------------|-----|
 | GAT | BCE | BGE Only (768) | 0.6901 ± 0.0020 | 0.2175 ± 0.0038 | 0.0493 ± 0.0013 | 0.1450 ± 0.0028 | 0.3439 | 0.0129 | 0.3311 |
 | GCN | BCE | BGE Only (768) | 0.8016 ± 0.0021 | 0.4685 ± 0.0058 | 0.1788 ± 0.0051 | 0.3713 ± 0.0063 | 0.4987 | 0.1859 | 0.3128 |
@@ -137,7 +139,14 @@ All results are averaged over 10 random seeds with mean ± standard deviation re
 
 ### GRetriever (LLM + Graph)
 
-[TODO]
+
+| Model | Features | Val Micro-F1 | Test Micro-F1 | Test Macro-F1 |
+|-------|------|----------|--------------|--------------|
+| SAGE + Qwen2.5-3B-Instruct | BGE + BM25 (822) | 0.5817 | 0.3238 | 0.1159 |
+| GAT + Qwen2.5-3B-Instruct | BGE + BM25 (822) | 0.7719 | 0.4104 | 0.1964 |
+| GATV2 + Qwen2.5-3B-Instruct | BGE + BM25 (822) | 0.8497 | 0.4515 | 0.1369 |
+
+
 
 ### Evaluation Scripts
 
