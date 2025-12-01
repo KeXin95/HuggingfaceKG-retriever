@@ -32,27 +32,28 @@ HuggingfaceKG-retriever/
 │   │   ├── run_pipeline.sh           # Complete pipeline execution
 │   │   └── readme.md                 # Detailed pipeline documentation
 │   │
-│   ├── GNN_training/                 # GNN model training
-│   │   ├── train.py                  # Main training script
-│   │   ├── model_utils.py            # Model utilities
-│   │   └── README.md                 # Training documentation
-│   │
-│   ├── gretriever/                   # GRetriever (LLM + Graph)
-│   │   ├── gretriever.py             # GRetriever implementation
-│   │   ├── finetune_llm_taskclass.py # Fine-tune for task classification
-│   │   ├── finetune_llm_linkpred.py  # Fine-tune for link prediction
-│   │   ├── gret_eval.py              # Evaluation script
-│   │   └── create_classification_evalset.py  # Create evaluation sets
+│   ├── models/                       # Model training and evaluation
+│   │   ├── model_utils.py            # Shared GNN model definitions
+│   │   ├── utils.py                  # Shared utilities
+│   │   ├── train.py                  # Main GNN training script
+│   │   ├── eval.py                   # Evaluate fine-tuned LLM models
+│   │   ├── examine_eval.py           # Examine evaluation results
+│   │   ├── plot_eval.py              # Plot evaluation visualizations
+│   │   ├── data/                     # Training results and visualizations
+│   │   ├── gretriever-pending/       # GRetriever (LLM + Graph)
+│   │   │   ├── gretriever.py         # GRetriever implementation
+│   │   │   ├── finetune_llm_taskclass.py  # Fine-tune for task classification
+│   │   │   ├── finetune_llm_linkpred.py   # Fine-tune for link prediction
+│   │   │   ├── gret_eval.py          # GRetriever evaluation
+│   │   │   └── create_classification_evalset.py
+│   │   └── README.md                 # Model training documentation
 │   │
 │   ├── notebooks/                    # Jupyter notebooks
-│   │   ├── exploration.ipynb         # Data exploration
-│   │   ├── EDA-ori.ipynb             # Original data EDA
-│   │   └── midterm-analysis.ipynb    # Analysis notebooks
-│   │
-│   ├── eval.py                       # Evaluation utilities
-│   ├── plot_eval.py                  # Plotting evaluation results
-│   ├── eda_analysis.py               # EDA analysis script
-│   └── data/                         # Evaluation results and plots
+│   │   ├── midterm-analysis.ipynb    # Analysis notebooks
+│   │   └── misc/                     # Additional notebooks
+│   │       ├── EDA-ori.ipynb         # Original data EDA
+│   │       ├── exploration.ipynb     # Data exploration
+│   │       └── PyG_reimplement.ipynb
 │
 ├── CogDL-master/                     # CogDL library (for graph construction)
 ├── experiment_runs/                  # Output directory (generated)
@@ -156,7 +157,8 @@ Pre-computed experiment results are available for download:
 
 ## Quick Start
 
-### Complete Pipeline Execution
+### 1. Data pipeline execution
+#### Complete Pipeline Execution
 
 Run the complete data processing pipeline:
 
@@ -172,7 +174,7 @@ This will:
 4. Build the final graph with train/val/test splits
 5. Save all outputs to `experiment_runs/run_YYYY-MM-DD_HH-MM-SS/`
 
-### Manual Pipeline Execution
+#### Manual Pipeline Execution
 
 Run each stage individually for more control:
 
@@ -200,12 +202,12 @@ python -m scripts.build_graph \
 
 For detailed pipeline documentation, see [`scripts/build-data-pipeline/readme.md`](scripts/build-data-pipeline/readme.md).
 
-### Training GNN Models
+### 2. Training GNN Models
 
 Train Graph Neural Networks for multi-label task classification:
 
 ```bash
-cd scripts/GNN_training
+cd scripts/models
 
 python train.py \
     --model_type gcn \
@@ -219,14 +221,14 @@ python train.py \
 - `--use_focal` - Use Focal Loss for class imbalance
 - `--exclude_bm25` - Use only BGE embeddings (drop BM25 features)
 
-For detailed training documentation, see [`scripts/GNN_training/README.md`](scripts/GNN_training/README.md).
+For detailed training documentation, see [`scripts/models/README.md`](scripts/models/README.md).
 
-### GRetriever (LLM + Graph)
+### 3. GRetriever (LLM + Graph)
 
 Fine-tune LLMs with graph-aware retrieval:
 
 ```bash
-cd scripts/gretriever
+cd scripts/models/gretriever-pending
 
 # Task classification
 python finetune_llm_taskclass.py
@@ -235,64 +237,23 @@ python finetune_llm_taskclass.py
 python finetune_llm_linkpred.py
 ```
 
-## Configuration
+## Evaluation Scripts
 
-Edit `scripts/build-data-pipeline/configs/main_config.py` to configure:
+After training models, use the evaluation scripts to analyze performance:
 
-```python
-# Input data path
-JSON_PATH = '../../HuggingKG_V20250916155543'
+```bash
+cd scripts/models
 
-# Hugging Face token (required for BGE embeddings)
-HF_TOKEN = 'your_token_here'
+# Evaluate fine-tuned LLM models
+python eval.py
 
-# Embedding model
-EMBEDDING_MODEL = 'BAAI/bge-base-en-v1.5'
+# Examine evaluation results
+python examine_eval.py
+
+# Generate evaluation visualizations
+python plot_eval.py
 ```
 
-## Features
-
-### Node Features
-
-1. **BGE Embeddings** (768 dimensions)
-   - Uses `BAAI/bge-base-en-v1.5` to encode model/dataset descriptions
-   - Provides semantic representations of text content
-
-2. **BM25 Features** (54 dimensions)
-   - Computes BM25 scores between descriptions and task names
-   - Captures explicit task mentions in descriptions
-   - Combined with BGE: `[BGE (768) | BM25 (54)] = 822 dim`
-
-### Graph Structure and Data Format
-
-The knowledge graph is represented as a PyTorch Geometric `Data` object:
-
-```python
-graph = torch.load('experiment_runs/run_2025-10-11_13-12-14/final_graph.pt')
-# Data(
-#     x=[107694, 822],              # Node features (BGE + BM25)
-#     edge_index=[2, 124056],       # Edge connectivity
-#     edge_attr=[124056],           # Edge type IDs
-#     y=[107694, 54],               # Multi-label task assignments
-#     train_mask=[107694],          # Training set mask
-#     val_mask=[107694],            # Validation set mask
-#     test_mask=[107694]            # Test set mask
-# )
-```
-
-**Components:**
-- **Nodes** (`x`): Models and Datasets (filtered to those with task definitions)
-  - Features: BGE embeddings (columns 0-767) + BM25 scores (columns 768-821)
-- **Edges** (`edge_index`, `edge_attr`): 5 relationship types
-  - Fine-tuning (`model_finetune_model`) - ID: 0
-  - Training (`model_trainedOrFineTunedOn_dataset`) - ID: 1
-  - Merging (`model_merge_model`) - ID: 2
-  - Quantization (`model_quantized_model`) - ID: 3
-  - Adapters (`model_adapter_model`) - ID: 4
-- **Labels** (`y`): Multi-label task assignments (54 task classes)
-  - Binary vectors where `1` indicates task association
-  - Task mapping: Check `task_to_idx.json` in each run directory
-- **Splits** (`train_mask/val_mask/test_mask`): Boolean masks for train/validation/test sets
 
 ## Troubleshooting
 
@@ -319,7 +280,7 @@ Ensure all edges reference nodes that exist in `nodes_df.pkl`. The pipeline auto
 ## Documentation
 
 - **Data Pipeline**: [`scripts/build-data-pipeline/readme.md`](scripts/build-data-pipeline/readme.md)
-- **GNN Training**: [`scripts/GNN_training/README.md`](scripts/GNN_training/README.md)
+- **Model Training**: [`scripts/models/README.md`](scripts/models/README.md)
 
 
 

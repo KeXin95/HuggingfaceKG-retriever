@@ -308,7 +308,7 @@ Ensure all edges reference nodes that exist in `nodes_df.pkl`. The pipeline auto
 After running the pipeline, use the generated graph for training:
 
 ```bash
-cd ../GNN_training
+cd ../models
 python train.py \
     --model_type gcn \
     --graph_path ../experiment_runs/run_YYYY-MM-DD_HH-MM-SS/final_graph.pt \

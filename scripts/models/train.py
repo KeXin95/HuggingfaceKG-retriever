@@ -12,7 +12,6 @@ import random
 from collections import defaultdict
 from model_utils import GCN, GAT, SAGE, GraphTransformer, GATv2
 import sys
-sys.path.append('../build-data-pipeline/scripts/')
 from utils import initialize_bias, analyze_long_tail_performance, fix_graph_data
 import joblib
 

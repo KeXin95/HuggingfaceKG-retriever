@@ -13,9 +13,17 @@ from collections import defaultdict
 
 from torch_geometric.data import Data, Batch
 from torch_geometric.utils import k_hop_subgraph
-from torch_geometric.nn import GAT
 from torch_geometric.llm.models import LLM, GRetriever
 from torch.utils.data import DataLoader
+import sys
+import os
+
+# Add models directory to path for imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+models_dir = os.path.join(current_dir, '..')
+if models_dir not in sys.path:
+    sys.path.insert(0, models_dir)
+from models.models import GraphEncoder
 
 from sklearn.metrics import f1_score, average_precision_score
 
@@ -49,19 +57,8 @@ NUM_CLASSES = len(TASK_LIST)
 TASK_LIST_PROMPT = f"""Here is a list of possible tasks: {TASK_LIST}.
 Please predict all relevant tasks for this model. Output only the indices, separated by commas."""
 
-class MyGraphEncoder(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels, edge_dim):
-        super().__init__()
-        self.conv1 = GAT(in_channels, hidden_channels, num_layers=1, edge_dim=edge_dim)
-        self.conv2 = GAT(hidden_channels, out_channels, num_layers=1, edge_dim=edge_dim)
-        self.relu = torch.nn.ReLU()
-        self.out_channels = out_channels
-
-    def forward(self, x, edge_index, edge_attr=None, **kwargs):
-        x = self.conv1(x, edge_index, edge_attr=edge_attr)
-        x = self.relu(x)
-        x = self.conv2(x, edge_index, edge_attr=edge_attr)
-        return x
+# Use shared GraphEncoder
+MyGraphEncoder = GraphEncoder
 
 def load_data():
     print("Loading graph and data...")

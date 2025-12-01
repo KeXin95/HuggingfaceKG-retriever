@@ -1,3 +1,10 @@
+"""
+Shared GNN Model Definitions
+
+This module contains all Graph Neural Network architectures used across
+both pure GNN training and GRetriever (LLM + Graph) approaches.
+"""
+
 from torch_geometric.nn import GCNConv, GATConv, SAGEConv, TransformerConv, GATv2Conv
 import torch.nn as nn
 
