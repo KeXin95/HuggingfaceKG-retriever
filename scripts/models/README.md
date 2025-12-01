@@ -6,9 +6,11 @@ This directory contains all model training and evaluation code for the Hugging F
 
 ```
 models/
-├── model_utils.py           # Shared GNN model definitions (GCN, GAT, SAGE, etc.)
-├── utils.py                 # Shared utilities (graph loading, training helpers)
-├── train.py                 # Main GNN training script
+├── model_utils.py                # Shared GNN model definitions (GCN, GAT, SAGE, etc.)
+├── utils.py                      # Shared utilities (graph loading, training helpers)
+├── train.py                      # Main GNN training script
+├── g_retrieval_final.py          # Main script to finetune gretrieval with qwen2.5 3b instruct
+├── g_retrieval_eval_final.py     # Main script to evaluate gretrieval with qwen2.5 3b instruct
 ├── gretriever-pending/      # LLM + Graph hybrid (GRetriever)
 │   ├── gretriever.py        # GRetriever implementation
 │   ├── finetune_llm_taskclass.py  # Fine-tune for task classification
@@ -140,8 +142,11 @@ All results are averaged over 10 random seeds with mean ± standard deviation re
 
 | Model | Features | Val Micro-F1 | Test Micro-F1 | Test Macro-F1 |
 |-------|------|----------|--------------|--------------|
+| SAGE + Qwen2.5-3B-Instruct | BGE + BM25 (822) | 0.5817 | 0.3238 | 0.1159 |
 | GAT + Qwen2.5-3B-Instruct | BGE + BM25 (822) | 0.7719 | 0.4104 | 0.1964 |
 | GATV2 + Qwen2.5-3B-Instruct | BGE + BM25 (822) | 0.8497 | 0.4515 | 0.1369 |
+
+
 
 ### Evaluation Scripts
 
