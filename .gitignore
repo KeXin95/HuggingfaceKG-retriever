@@ -11,3 +11,5 @@ ori-cogdl.ipynb
 DONOT_PUSH/*
 .specstory/*
 .cursorindexingignore
+all-gnn-5run/*
+data/*.xlsx

@@ -105,14 +105,19 @@ All results are averaged over 10 random seeds with mean ± standard deviation re
 
 | Model | Loss | Features | Val Micro-F1 | Test Micro-F1 | Test Macro-F1 | Test PR-AUC | Test Head F1 (Top 10) | Test Tail F1 (Rest) | Test Gap |
 |-------|------|----------|--------------|---------------|---------------|-------------|------------------|----------------|-----|
-| GAT | BCE | BGE Only (768) | 0.6901 ± 0.0020 | 0.2175 ± 0.0038 | 0.0493 ± 0.0013 | 0.1450 ± 0.0028 | 0.3439 | 0.0129 | 0.3311 |
-| GCN | BCE | BGE Only (768) | 0.8016 ± 0.0021 | 0.4685 ± 0.0058 | 0.1788 ± 0.0051 | 0.3713 ± 0.0063 | 0.4987 | 0.1859 | 0.3128 |
-| GCN | BCE | BGE + BM25 (822) | 0.8916 ± 0.0022 | 0.4838 ± 0.0037 | 0.1692 ± 0.0125 | 0.4002 ± 0.0155 | 0.5217 | 0.0857 | 0.4360 |
-| GCN | Focal | BGE + BM25 (822) | 0.8755 ± 0.0088 | 0.4704 ± 0.0205 | 0.1829 ± 0.0115 | 0.4520 ± 0.0173 | 0.4712 | 0.1666 | 0.3046 |
-| SAGE | BCE | BGE + BM25 (822) | 0.9270 ± 0.0006 | 0.5890 ± 0.0246 | 0.2040 ± 0.0038 | 0.5478 ± 0.0111 | 0.6464 | 0.1182 | 0.5282 |
-| SAGE | Focal | BGE + BM25 (822) | 0.9146 ± 0.0013 | 0.5928 ± 0.0494 | 0.1710 ± 0.0138 | 0.5213 ± 0.0166 | 0.6354 | 0.0983 | 0.5371 |
-| TRANSFORMER | BCE | BGE + BM25 (822) | 0.9246 ± 0.0012 | 0.6270 ± 0.0613 | 0.2069 ± 0.0090 | 0.5613 ± 0.0147 | 0.7342 | 0.1199 | 0.6143 |
-| TRANSFORMER | Focal | BGE + BM25 (822) | 0.9242 ± 0.0008 | **0.6876 ± 0.0540** | **0.2319 ± 0.0194** | **0.6713 ± 0.0148** | 0.6602 | 0.2156 | 0.4445 |
+| GAT | BCE | BGE Only (768) | 0.8939 ± 0.0019 | 0.5526 ± 0.0529 | 0.2187 ± 0.0115 | 0.4052 ± 0.0166 | 0.5726 | 0.1471 | 0.4256 |
+| GAT | BCE | BGE + BM25 (822) | 0.8938 ± 0.0016 | 0.5613 ± 0.0691 | 0.2383 ± 0.0149 | 0.4391 ± 0.0218 | 0.6533 | 0.1663 | 0.4870 |
+| GAT | Focal | BGE + BM25 (822) | 0.8824 ± 0.0044 | 0.6086 ± 0.0146 | 0.1354 ± 0.0119 | 0.4968 ± 0.0234 | 0.4952 | 0.0600 | 0.4353 |
+| GCN | BCE | BGE Only (768) | 0.8892 ± 0.0005 | 0.4844 ± 0.0042 | 0.1368 ± 0.0101 | 0.3600 ± 0.0094 | 0.4870 | 0.0791 | 0.4079 |
+| GCN | BCE | BGE + BM25 (822) | 0.8905 ± 0.0022 | 0.4832 ± 0.0023 | 0.1665 ± 0.0122 | 0.3954 ± 0.0081 | 0.5147 | 0.0857 | 0.4290 |
+| GCN | Focal | BGE + BM25 (822) | 0.8748 ± 0.0098 | 0.4733 ± 0.0253 | 0.1787 ± 0.0157 | 0.4424 ± 0.0195 | 0.4623 | 0.1404 | 0.3218 |
+| SAGE | BCE | BGE Only (768) | 0.9239 ± 0.0009 | 0.5753 ± 0.0250 | 0.1961 ± 0.0052 | 0.4835 ± 0.0137 | 0.5963 | 0.1078 | 0.4885 |
+| SAGE | BCE | BGE + BM25 (822) | 0.9273 ± 0.0009 | 0.5834 ± 0.0254 | 0.2026 ± 0.0038 | 0.5499 ± 0.0064 | 0.6282 | 0.0993 | 0.5289 |
+| SAGE | Focal | BGE + BM25 (822) | 0.9152 ± 0.0007 | 0.5923 ± 0.0490 | 0.1673 ± 0.0124 | 0.5219 ± 0.0173 | 0.5740 | 0.0544 | 0.5196 |
+| TRANSFORMER | BCE | BGE Only (768) | 0.9229 ± 0.0008 | 0.5783 ± 0.0147 | 0.1914 ± 0.0056 | 0.4740 ± 0.0088 | 0.6380 | 0.0784 | 0.5596 |
+| TRANSFORMER | BCE | BGE + BM25 (822) | 0.9265 ± 0.0008 | 0.6302 ± 0.0483 | 0.2101 ± 0.0047 | 0.5789 ± 0.0130 | 0.6137 | 0.1107 | 0.5030 |
+| TRANSFORMER | Focal | BGE + BM25 (822) | 0.9261 ± 0.0005 | **0.7174 ± 0.0037** | **0.2608 ± 0.0131** | **0.6791 ± 0.0068** | 0.6624 | 0.1636 | 0.4989 |
+| GATV2 | BCE | BGE Only (768) | 0.9170 ± 0.0019 | 0.7065 ± 0.0077 | 0.1749 ± 0.0041 | 0.4146 ± 0.0256 | 0.6623 | 0.0610 | 0.6014 |
 | GATV2 | BCE | BGE + BM25 (822) | 0.9191 ± 0.0011 | **0.7124 ± 0.0051** | 0.1945 ± 0.0089 | 0.4753 ± 0.0111 | 0.6469 | 0.0738 | 0.5731 |
 | GATV2 | Focal | BGE + BM25 (822) | 0.9212 ± 0.0015 | 0.7085 ± 0.0082 | 0.2140 ± 0.0168 | 0.6290 ± 0.0226 | 0.6504 | 0.1004 | 0.5500 |
 
@@ -128,12 +133,13 @@ All results are averaged over 10 random seeds with mean ± standard deviation re
 
 #### Key Findings
 
-1. **Best Test Micro-F1**: GATV2 with BCE Loss achieves **0.7124 ± 0.0051** (most stable)
-2. **Best Test PR-AUC**: TRANSFORMER with Focal Loss achieves **0.6713 ± 0.0148**
-3. **Best Test Macro-F1**: TRANSFORMER with Focal Loss achieves **0.2319 ± 0.0194**
-4. **BM25 Impact**: Adding BM25 features significantly improves performance (compare GCN BGE-only vs BGE+BM25)
-5. **Focal Loss**: Generally improves PR-AUC and Macro-F1, but may reduce Micro-F1 for some models
-6. **Long-tail Performance**: Head F1 (top 10 tasks) is consistently higher than Tail F1 (remaining tasks), indicating class imbalance challenges
+1. **Best Test Micro-F1**: TRANSFORMER with Focal Loss achieves **0.7174 ± 0.0037** (highest overall)
+2. **Best Test PR-AUC**: TRANSFORMER with Focal Loss achieves **0.6791 ± 0.0068**
+3. **Best Test Macro-F1**: TRANSFORMER with Focal Loss achieves **0.2608 ± 0.0131**
+4. **Most Stable Test Micro-F1**: GATV2 with BCE Loss achieves **0.7124 ± 0.0051** (lowest variance)
+5. **BM25 Impact**: Adding BM25 features generally improves performance across most models (compare BGE-only vs BGE+BM25 variants)
+6. **Focal Loss**: Generally improves PR-AUC and Macro-F1, and can improve Micro-F1 for TRANSFORMER and GAT models
+7. **Long-tail Performance**: Head F1 (top 10 tasks) is consistently higher than Tail F1 (remaining tasks), indicating class imbalance challenges
 
 **Note**: Head F1 refers to performance on the top 10 most frequent task classes, while Tail F1 refers to the remaining task classes. The Gap metric measures the performance difference between head and tail classes.
 
