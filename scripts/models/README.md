@@ -8,7 +8,6 @@ This directory contains all model training and evaluation code for the Hugging F
 models/
 ├── model_utils.py           # Shared GNN model definitions (GCN, GAT, SAGE, etc.)
 ├── utils.py                 # Shared utilities (graph loading, training helpers)
-├── eval_helper.py           # Helper functions for evaluation
 ├── train.py                 # Main GNN training script
 ├── inference_graph_to_df.py # Run inference and export predictions to DataFrame
 ├── model_config_example.json # Example configuration file for inference
