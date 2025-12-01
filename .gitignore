@@ -7,3 +7,7 @@ __MACOSX/
 archive/
 experiment_runs/
 plots/
+ori-cogdl.ipynb
+DONOT_PUSH/*
+.specstory/*
+.cursorindexingignore

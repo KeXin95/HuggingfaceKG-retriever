@@ -1,11 +1,38 @@
 # Python 3.12.11
+
+# Core Deep Learning
 torch
 torch-geometric
-scikit-learn
-joblib
+
+# Data Processing
 pandas==2.3.2
 numpy==2.0.1
 scipy
+scikit-learn
+joblib
+
+# Hugging Face Ecosystem
 transformers==4.56.2
-gensim==4.3.3
+datasets
+huggingface-hub
+peft
+trl
+bitsandbytes
+
+# Embeddings & Retrieval
+FlagEmbedding
+bm25s
+
+# Graph Neural Networks
+# Note: CogDL must be installed separately from CogDL-master/ directory
+# See installation instructions in README.md
+
+# Visualization
+matplotlib
+seaborn
+networkx
+
+# Utilities
 tqdm==4.67.1
+gensim==4.3.3
+pytz

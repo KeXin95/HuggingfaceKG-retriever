@@ -11,6 +11,8 @@ import numpy as np
 import random
 from collections import defaultdict
 from model_utils import GCN, GAT, SAGE, GraphTransformer, GATv2
+import sys
+sys.path.append('../build-data-pipeline/scripts/')
 from utils import initialize_bias, analyze_long_tail_performance, fix_graph_data
 import joblib
 
@@ -274,3 +276,6 @@ if __name__ == "__main__":
         values = agg_results[metric]
         print(f"{metric.upper().ljust(20)}: {np.mean(values):.4f} ± {np.std(values):.4f}")
     print("="*40)
+    
+    
+# CUDA_VISIBLE_DEVICES=1 python train.py --graph_path ../experiment_runs/run_2025-10-11_13-12-14/final_graph.pt --save_dir ../experiment_runs/run_2025-11-29_19-20-02/GATCONV2 --model_type gatv2

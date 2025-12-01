@@ -737,7 +737,7 @@ def main():
 if __name__ == "__main__":
     main()
 
-# python -m scripts.eda_analysis --dataset_path ./experiment_runs/run_2025-09-26_22-12-13/final_graph.pt --task_mapping_path ./experiment_runs/run_2025-09-26_22-12-13/task_to_idx.json --sample_size 1000 --fix_graph
+# python -m scripts.eda_analysis --dataset_path ../experiment_runs/run_2025-09-26_22-12-13/final_graph.pt --task_mapping_path ../experiment_runs/run_2025-09-26_22-12-13/task_to_idx.json --sample_size 1000 --fix_graph
 # python -m scripts.eda_analysis --dataset_path ../task_classification/data/huggingface_bge.pt --task_mapping_path ../task_classification/data/task_id.json --sample_size 1000 --fix_graph
 
 

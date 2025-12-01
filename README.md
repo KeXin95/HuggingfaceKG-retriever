@@ -1,68 +1,119 @@
 # HuggingfaceKG-retriever
 
-A knowledge graph-based retrieval system for Hugging Face models and datasets. This project constructs a heterogeneous knowledge graph from Hugging Face Hub data and provides tools for graph-based model and dataset recommendation.
+A knowledge graph-based retrieval system for Hugging Face models and datasets. This project constructs a heterogeneous knowledge graph from Hugging Face Hub data and provides tools for graph-based model and dataset recommendation using Graph Neural Networks (GNNs) and Large Language Models (LLMs).
 
 ## Overview
 
 This project processes Hugging Face Hub data to build a comprehensive knowledge graph containing:
 - **Models** and **Datasets** as nodes
-- **Relationships** between models and datasets as edges (fine-tuning, training, quantization, merging, etc.)
+- **Relationships** between models and datasets as edges (fine-tuning, training, quantization, merging, adapters)
 - **Task labels** for multi-label classification
 - **Text embeddings** using BGE (BAAI General Embedding) models
+- **BM25 features** for enhanced task classification
+
+The system supports multiple approaches:
+1. **GNN-based classification**: Train Graph Neural Networks for multi-label task prediction
+2. **GRetriever**: Fine-tune LLMs with graph-aware retrieval for task classification and link prediction
 
 ## Project Structure
 
 ```
 HuggingfaceKG-retriever/
-├── configs/
-│   └── main_config.py          # Configuration settings
 ├── scripts/
-│   ├── build_base_data.py    # Stage 1: Process JSON data into DataFrames
-│   ├── generate_features.py  # Stage 2: Generate BGE embeddings
-│   ├── build_graph.py        # Stage 3: Construct final graph object
-│   └── utils.py                # Utility functions
-├── tune_huggingface.py         # GNN training script
-├── run_pipeline.sh             # Complete pipeline execution
-├── exploration.ipynb           # Data exploration notebook
-├── requirements.txt            # Python dependencies
-├── .gitignore                  # Git ignore rules
-├── experiment_runs/            # Output directory (generated, not in repo)
-│   └── run_YYYY-MM-DD_HH-MM-SS/  # Individual experiment runs
-│       ├── nodes_df.pkl           # Processed node DataFrame
-│       ├── edges_df.pkl           # Processed edge DataFrame
-│       ├── node_features.pt       # BGE embeddings tensor
-│       ├── final_graph.pt         # Final graph object
-│       ├── task_to_idx.json       # Task ID mapping
-│       ├── old_to_new_idx.json    # Node reindexing mapping
-│       └── trained_*.pt           # Trained model checkpoints
-└── HuggingKG_V20250916155543/  # Input data folder (large, not in repo)
-    ├── models.json             # Model metadata
-    ├── datasets.json           # Dataset metadata
-    ├── tasks.json              # Task definitions
-    ├── model_definedFor_task.json
-    ├── dataset_definedFor_task.json
-    ├── model_finetune_model.json
-    ├── model_trainedOrFineTunedOn_dataset.json
-    ├── model_merge_model.json
-    ├── model_quantized_model.json
-    └── model_adapter_model.json
+│   ├── build-data-pipeline/          # Data processing pipeline
+│   │   ├── configs/
+│   │   │   └── main_config.py        # Configuration settings
+│   │   ├── scripts/
+│   │   │   ├── build_base_data.py    # Stage 1: Process JSON → DataFrames
+│   │   │   ├── generate_features.py  # Stage 2a: Generate BGE embeddings
+│   │   │   ├── generate_features_bm25.py  # Stage 2b: BGE + BM25 features
+│   │   │   ├── build_graph.py        # Stage 3: Construct graph object
+│   │   │   └── utils.py              # Utility functions
+│   │   ├── run_pipeline.sh           # Complete pipeline execution
+│   │   └── readme.md                 # Detailed pipeline documentation
+│   │
+│   ├── GNN_training/                 # GNN model training
+│   │   ├── train.py                  # Main training script
+│   │   ├── model_utils.py            # Model utilities
+│   │   └── README.md                 # Training documentation
+│   │
+│   ├── gretriever/                   # GRetriever (LLM + Graph)
+│   │   ├── gretriever.py             # GRetriever implementation
+│   │   ├── finetune_llm_taskclass.py # Fine-tune for task classification
+│   │   ├── finetune_llm_linkpred.py  # Fine-tune for link prediction
+│   │   ├── gret_eval.py              # Evaluation script
+│   │   └── create_classification_evalset.py  # Create evaluation sets
+│   │
+│   ├── notebooks/                    # Jupyter notebooks
+│   │   ├── exploration.ipynb         # Data exploration
+│   │   ├── EDA-ori.ipynb             # Original data EDA
+│   │   └── midterm-analysis.ipynb    # Analysis notebooks
+│   │
+│   ├── eval.py                       # Evaluation utilities
+│   ├── plot_eval.py                  # Plotting evaluation results
+│   ├── eda_analysis.py               # EDA analysis script
+│   └── data/                         # Evaluation results and plots
+│
+├── CogDL-master/                     # CogDL library (for graph construction)
+├── experiment_runs/                  # Output directory (generated)
+│   └── run_YYYY-MM-DD_HH-MM-SS/      # Individual experiment runs
+│       ├── nodes_df.pkl              # Processed node DataFrame
+│       ├── edges_df.pkl              # Processed edge DataFrame
+│       ├── node_features.pt         # BGE embeddings tensor
+│       ├── final_graph.pt           # Final graph object
+│       ├── task_to_idx.json         # Task ID mapping
+│       ├── old_to_new_idx.json      # Node reindexing mapping
+│       └── trained_*.pt             # Trained model checkpoints
+│
+├── HuggingKG_V20250916155543/        # Input data folder (large, not in repo)
+│   ├── models.json                   # Model metadata
+│   ├── datasets.json                 # Dataset metadata
+│   ├── tasks.json                    # Task definitions
+│   ├── model_definedFor_task.json
+│   ├── dataset_definedFor_task.json
+│   ├── model_finetune_model.json
+│   ├── model_trainedOrFineTunedOn_dataset.json
+│   ├── model_merge_model.json
+│   ├── model_quantized_model.json
+│   └── model_adapter_model.json
+│
+├── requirements.txt                  # Python dependencies
+└── README.md                         # This file
 ```
-
 
 ## Installation
 
-1. Clone the repository:
+### 1. Clone the Repository
+
 ```bash
 git clone <repository-url>
 cd HuggingfaceKG-retriever
 ```
 
-2. Install dependencies:
+### 2. Install Dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Install CogDL (required for graph neural networks):
+**Key dependencies:**
+- `torch`, `torch-geometric` - Deep learning frameworks
+- `transformers` - Hugging Face transformers
+- `pandas`, `numpy`, `scikit-learn` - Data processing
+- `FlagEmbedding` - BGE embeddings
+- `bm25s` - BM25 retrieval
+- `cogdl` - Graph neural network library
+
+### 3. Install CogDL (Required for Graph Construction)
+
+```bash
+cd CogDL-master
+pip install -e .
+cd ..
+```
+
+**Note**: CogDL is included as a subdirectory in this repository. If you prefer to install from source:
+
 ```bash
 git clone https://github.com/THUDM/CogDL.git
 cd CogDL
@@ -103,110 +154,172 @@ Pre-computed experiment results are available for download:
 
 **Note**: The experiment results are large (several GB) and contain all the processed data from the pipeline stages.
 
-## Data Storage
+## Quick Start
 
-### Large Files and Experiment Results
+### Complete Pipeline Execution
 
-The pipeline generates large files that may exceed GitHub's file size limits:
+Run the complete data processing pipeline:
 
-- **Experiment runs** (`experiment_runs/`): Contains processed data, embeddings, and trained models
-- **Input data** (`HuggingKG_V20250916155543/`): Raw JSON data from Hugging Face Hub
-- **Model checkpoints**: Trained GNN models (`trained_*.pt` files)
-
-
-## Configuration
-
-Edit `configs/main_config.py` to configure:
-- Input data path (`JSON_PATH`)
-- Hugging Face token (`HF_TOKEN`)
-- Embedding model (`EMBEDDING_MODEL`)
-- Output filenames
-
-## Usage
-
-### Quick Start
-
-Run the complete pipeline:
 ```bash
+cd scripts/build-data-pipeline
 bash run_pipeline.sh
 ```
 
 This will:
-1. Process JSON data into nodes and edges DataFrames
-2. Generate BGE embeddings for all descriptions
-3. Build the final graph with train/val/test splits
-4. Train a GCN model on the graph
+1. Create a unique run directory with timestamp
+2. Process JSON data into nodes and edges DataFrames
+3. Generate BGE embeddings (and optional BM25 features)
+4. Build the final graph with train/val/test splits
+5. Save all outputs to `experiment_runs/run_YYYY-MM-DD_HH-MM-SS/`
 
 ### Manual Pipeline Execution
 
-Run each stage individually:
+Run each stage individually for more control:
 
 ```bash
-# Stage 1: Build base data
-python -m scripts.build_base_data --run_dir ./experiment_runs/my_run
+cd scripts/build-data-pipeline
 
-# Stage 2: Generate features
-python -m scripts.generate_features_bm25 --run_dir ./experiment_runs/my_run
+# Create a run directory
+RUN_DIR="../../experiment_runs/my_custom_run"
+mkdir -p "$RUN_DIR"
+
+# Stage 1: Build base data
+python -m scripts.build_base_data --run_dir "$RUN_DIR"
+
+# Stage 2: Generate features (choose one)
+python -m scripts.generate_features --run_dir "$RUN_DIR"          # BGE only (768 dim)
+python -m scripts.generate_features_bm25 --run_dir "$RUN_DIR"     # BGE + BM25 (822 dim)
 
 # Stage 3: Build graph
-python -m scripts.build_graph --run_dir ./experiment_runs/my_run --split_strategy time
+python -m scripts.build_graph \
+    --run_dir "$RUN_DIR" \
+    --split_strategy time \
+    --remove_isolated \
+    --isolated_strategy connected_only
 ```
+
+For detailed pipeline documentation, see [`scripts/build-data-pipeline/readme.md`](scripts/build-data-pipeline/readme.md).
 
 ### Training GNN Models
 
-Train graph neural networks using CogDL:
+Train Graph Neural Networks for multi-label task classification:
 
 ```bash
-python tune_huggingface.py \
-    --data_dir ./experiment_runs/my_run \
-    --save_path ./experiment_runs/my_run/trained_model.pt \
-    --models gcn gat graphsage \
-    --devices 0 \
-    --seeds 0 1 2
+cd scripts/GNN_training
+
+python train.py \
+    --model_type gcn \
+    --graph_path ../experiment_runs/run_2025-10-11_13-12-14/final_graph.pt \
+    --save_dir ./results/gcn_run
 ```
 
-### Data Exploration
+**Supported models**: `gcn`, `gat`, `sage`, `transformer`, `gatv2`
 
-Use the provided Jupyter notebook for data exploration:
+**Options**:
+- `--use_focal` - Use Focal Loss for class imbalance
+- `--exclude_bm25` - Use only BGE embeddings (drop BM25 features)
+
+For detailed training documentation, see [`scripts/GNN_training/README.md`](scripts/GNN_training/README.md).
+
+### GRetriever (LLM + Graph)
+
+Fine-tune LLMs with graph-aware retrieval:
+
 ```bash
-jupyter notebook exploration.ipynb
+cd scripts/gretriever
+
+# Task classification
+python finetune_llm_taskclass.py
+
+# Link prediction
+python finetune_llm_linkpred.py
 ```
-### Features
-1. text embedding: use bge-base-en to get embedding from description
-2. bm25 score: use model/dataset description as query and list of tasks name as corpus, we create this feature as a lot of times the user has put the task name directly on the description, so that we can use it to enhance model performance.
 
-### Graph data field explanation
+## Configuration
+
+Edit `scripts/build-data-pipeline/configs/main_config.py` to configure:
+
+```python
+# Input data path
+JSON_PATH = '../../HuggingKG_V20250916155543'
+
+# Hugging Face token (required for BGE embeddings)
+HF_TOKEN = 'your_token_here'
+
+# Embedding model
+EMBEDDING_MODEL = 'BAAI/bge-base-en-v1.5'
 ```
-graph = torch.load('experiment_runs/run_2025-09-26_21-25-12/final_graph.pt')
-graph
-> Data(x=[107694, 822], edge_index=[2, 124056], y=[107694, 54], train_mask=[107694], val_mask=[107694], test_mask=[107694])
+
+## Features
+
+### Node Features
+
+1. **BGE Embeddings** (768 dimensions)
+   - Uses `BAAI/bge-base-en-v1.5` to encode model/dataset descriptions
+   - Provides semantic representations of text content
+
+2. **BM25 Features** (54 dimensions)
+   - Computes BM25 scores between descriptions and task names
+   - Captures explicit task mentions in descriptions
+   - Combined with BGE: `[BGE (768) | BM25 (54)] = 822 dim`
+
+### Graph Structure and Data Format
+
+The knowledge graph is represented as a PyTorch Geometric `Data` object:
+
+```python
+graph = torch.load('experiment_runs/run_2025-10-11_13-12-14/final_graph.pt')
+# Data(
+#     x=[107694, 822],              # Node features (BGE + BM25)
+#     edge_index=[2, 124056],       # Edge connectivity
+#     edge_attr=[124056],           # Edge type IDs
+#     y=[107694, 54],               # Multi-label task assignments
+#     train_mask=[107694],          # Training set mask
+#     val_mask=[107694],            # Validation set mask
+#     test_mask=[107694]            # Test set mask
+# )
 ```
-- x: BGE-en-base (column 1-768) embedding and BM25 retriever (column 768-822) of 107694 records
-- edge_index: edge pairs
-- y: target label (Multilabel), example: [0, 0, 0, 1, 0, ...0], each entries in this lists is 1 indicates that the user has labeled its model/dataset to this task, in this example, a "1" at index 3 indicates that this model/dataset is associated to image-to-video (check `task_to_idx.json` in each run result)
-- train_mask/val_mask/test_mask: a list of True/False indicating the nodes is for training/validation/testing
 
-### CHANGELOG
-1. 2025-10-04: 
-    1. Replace Standard scaler to use L2 norm
-    2. Add EDA on original graph from paper
-    3. Add GAT training script
-    4. Removed **ALL** isolated nodes from graph
-2. 2025-10-11: 
-    1. Use bm25 as features on top of original BGE embeddings
-    2. Regenerate dataset with dates closer to our own collections dates (latest data can be found [here](https://drive.google.com/drive/u/1/folders/1tk03BEFGyRhB9Sn7UzvXO1yAdc3MdopH))
-    3. Train SAGECONV and Graph Transformer model and achieve much better micro-f1 result.
+**Components:**
+- **Nodes** (`x`): Models and Datasets (filtered to those with task definitions)
+  - Features: BGE embeddings (columns 0-767) + BM25 scores (columns 768-821)
+- **Edges** (`edge_index`, `edge_attr`): 5 relationship types
+  - Fine-tuning (`model_finetune_model`) - ID: 0
+  - Training (`model_trainedOrFineTunedOn_dataset`) - ID: 1
+  - Merging (`model_merge_model`) - ID: 2
+  - Quantization (`model_quantized_model`) - ID: 3
+  - Adapters (`model_adapter_model`) - ID: 4
+- **Labels** (`y`): Multi-label task assignments (54 task classes)
+  - Binary vectors where `1` indicates task association
+  - Task mapping: Check `task_to_idx.json` in each run directory
+- **Splits** (`train_mask/val_mask/test_mask`): Boolean masks for train/validation/test sets
 
-### Performance Tracking
+## Troubleshooting
 
-| Date | Model | Run ID | Best Val Micro-F1 | Test Loss | Test Micro-F1 | Notes | Model filename |
-|------|-------|--------|-------------------|-----------|---------------|-------| -------------- | 
-| 2025-10-04 | GCN | run_2025-10-04_21-45-35 | 0.8162 | 0.0695 | 0.4004 | Standard scaler | trained_gcn.pt |
-| 2025-10-04 | GAT | run_2025-10-04_21-45-35 | 0.8203 | 0.0522 | 0.4073 | Standard scaler | trained_gat.pt |
-| 2025-10-11 | GCN | run_2025-10-11_13-12-14 | 0.8918 | 0.0720 | 0.4912 | Standard scaler + BM25 features | trained_gcn_own_scaler.pt |
-| 2025-10-11 | SAGECONV | run_2025-10-11_13-12-14 | 0.9284 | 0.0306 | 0.5528 | Standard scaler + BM25 features | trained_sageconv_own_scaler.pt |
-| 2025-10-11 | Graph Transformer | run_2025-10-11_13-12-14 | 0.9268 | 0.0100 | 0.6032 | Standard scaler + BM25 features + edge attributes| trained_trans_own_scaler.pt |
+### Missing Hugging Face Token
+Set `HF_TOKEN` in `scripts/build-data-pipeline/configs/main_config.py` or export as environment variable:
+```bash
+export HF_TOKEN='your_token_here'
+```
 
-#### Key Improvements:
-- **2025-10-11**: Significant improvement in both validation and test Micro-F1 scores
-- **BM25 Features**: Addition of BM25 features on top of BGE embeddings improved performance
+### Out of Memory
+- Reduce batch size in `generate_features.py` (default: 64)
+- Use BGE-only features instead of BGE+BM25
+- Process in smaller chunks
+
+### Isolated Nodes Warning
+If you see warnings about isolated nodes:
+- Check `--isolated_strategy` setting
+- Verify nodes have edges in the input JSON files
+- Review edge filtering logic in Stage 1
+
+### Edge Index Errors
+Ensure all edges reference nodes that exist in `nodes_df.pkl`. The pipeline automatically filters invalid edges.
+
+## Documentation
+
+- **Data Pipeline**: [`scripts/build-data-pipeline/readme.md`](scripts/build-data-pipeline/readme.md)
+- **GNN Training**: [`scripts/GNN_training/README.md`](scripts/GNN_training/README.md)
+
+
+
