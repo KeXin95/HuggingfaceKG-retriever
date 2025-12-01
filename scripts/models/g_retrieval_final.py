@@ -5,24 +5,30 @@ import pandas as pd
 import json
 import numpy as np
 from datasets import Dataset
+from peft import LoraConfig
+from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
 from torch_geometric.data import Data, Batch
 from torch_geometric.utils import k_hop_subgraph
 from tqdm import tqdm
-from torch.cuda.amp import autocast
+from torch.cuda.amp import autocast, GradScaler
 
 from model_utils import GraphEncoderGAT, GraphEncoderGATConv2, GraphEncoderSAGE
 from torch_geometric.llm.models import LLM, GRetriever
-from typing import List
+from typing import List, Optional
+import glob
+import shutil
 import joblib
 from sklearn.preprocessing import StandardScaler
+
+from huggingface_hub import login
 import os
 
 # ==========================================
 # 2. Configuration
 # ==========================================
 MODEL_NAME = "Qwen/Qwen2.5-3B-Instruct"
-BASE_EXP_DIR = 'experiment_runs/run_2025-10-11_13-12-14/'
+BASE_EXP_DIR = './experiment_runs/run_2025-10-11_13-12-14/'
 GRAPH_FILE = os.path.join(BASE_EXP_DIR, 'final_graph.pt')
 NODES_DF_PATH = os.path.join(BASE_EXP_DIR, 'nodes_df.parquet')
 BRIDGE_FILE = os.path.join(BASE_EXP_DIR, 'old_to_new_idx.json')
