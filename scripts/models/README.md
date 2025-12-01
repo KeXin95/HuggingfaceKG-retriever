@@ -9,18 +9,15 @@ models/
 ├── model_utils.py           # Shared GNN model definitions (GCN, GAT, SAGE, etc.)
 ├── utils.py                 # Shared utilities (graph loading, training helpers)
 ├── train.py                 # Main GNN training script
-├── inference_graph_to_df.py # Run inference and export predictions to DataFrame
-├── model_config_example.json # Example configuration file for inference
-├── eval.py                  # Evaluate fine-tuned LLM models for task classification
-├── examine_eval.py          # Examine evaluation results from JSON files
-├── plot_eval.py             # Create visualizations from evaluation results
-├── results_inferences/      # Inference output directory (generated)
 ├── gretriever-pending/      # LLM + Graph hybrid (GRetriever)
 │   ├── gretriever.py        # GRetriever implementation
 │   ├── finetune_llm_taskclass.py  # Fine-tune for task classification
 │   ├── finetune_llm_linkpred.py    # Fine-tune for link prediction
 │   ├── gret_eval.py         # GRetriever evaluation script
-│   └── create_classification_evalset.py
+│   ├── create_classification_evalset.py
+│   ├── eval.py                  # Evaluate fine-tuned LLM models for task classification
+│   ├── examine_eval.py          # Examine evaluation results from JSON files
+│   └── plot_eval.py             # Create visualizations from evaluation results
 └── README.md                # This file
 ```
 
