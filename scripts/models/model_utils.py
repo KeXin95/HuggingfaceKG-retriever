@@ -85,7 +85,7 @@ class GCN(nn.Module):
 class GATKG(nn.Module):
     """ Graph Attention Network (GAT) """
     def __init__(self, in_feats, hidden_size, out_feats, dropout, heads=8):
-        super(GAT, self).__init__()
+        super(GATKG, self).__init__()
         self.dropout = dropout
         self.conv1 = GATConv(in_feats, hidden_size, heads=heads, dropout=dropout)
         self.conv2 = GATConv(hidden_size * heads, out_feats, heads=1, concat=False, dropout=dropout)
