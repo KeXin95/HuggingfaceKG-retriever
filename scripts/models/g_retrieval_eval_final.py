@@ -1,5 +1,6 @@
 import os
 import torch
+import torch.nn as nn
 import pandas as pd
 import json
 import numpy as np
@@ -13,22 +14,19 @@ from collections import defaultdict
 
 from torch_geometric.data import Data, Batch
 from torch_geometric.utils import k_hop_subgraph
+from torch_geometric.nn import GAT
 from torch_geometric.llm.models import LLM, GRetriever
 from torch.utils.data import DataLoader
 from model_utils import GraphEncoderGAT, GraphEncoderGATConv2, GraphEncoderSAGE
 
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, average_precision_score
 
 MODEL_NAME = "Qwen/Qwen2.5-3B-Instruct"
-BASE_EXP_DIR = 'experiment_runs/run_2025-10-11_13-12-14/'
+BASE_EXP_DIR = './experiment_runs/run_2025-10-11_13-12-14/'
 GRAPH_FILE = os.path.join(BASE_EXP_DIR, 'final_graph.pt')
 NODES_DF_PATH = os.path.join(BASE_EXP_DIR, 'nodes_df.parquet')
 BRIDGE_FILE = os.path.join(BASE_EXP_DIR, 'old_to_new_idx.json')
 SCALER_FILE = os.path.join(BASE_EXP_DIR, 'scaler.pkl')
-
-MODEL_TYPE = 'GATV2'# #Or 'GAT'
-VERSION = 1
-NEW_MODEL_NAME = f"g_retriever_multilabel_{MODEL_TYPE}_v{VERSION}"
 
 BGE_EMBED_DIM = 768+54 #BGE with BM25 
 GNN_HIDDEN_DIM = 256
@@ -166,7 +164,7 @@ def create_collate_fn(graph):
         return questions, true_labels, graph_batch
     return collate_fn
 
-def load_checkpoint(base_dir, checkpoint_name, input_dim):
+def load_checkpoint(model_type, base_dir, checkpoint_name, input_dim):
     print(f"\n--- Loading Checkpoint: {checkpoint_name} ---")
     
     if checkpoint_name == "final":
@@ -183,7 +181,7 @@ def load_checkpoint(base_dir, checkpoint_name, input_dim):
     llm = LLM(model_name=lora_path, n_gpus=1)
 
     print(f"Loading GNN from: {gnn_path}")
-    gnn = model_dict[MODEL_TYPE](
+    gnn = model_dict[model_type](
         in_channels=BGE_EMBED_DIM,
         hidden_channels=GNN_HIDDEN_DIM,
         out_channels=GNN_OUT_DIM,
@@ -284,9 +282,17 @@ def main():
                         help="Folder name of checkpoint (e.g. 'checkpoint-10000') or 'final'")
     parser.add_argument('--split', type=str, default='test', choices=['val', 'test'],
                         help="Which split to evaluate on (val or test)")
+    parser.add_argument('--model', type=str, default='GAT', choices=['GAT', 'GATV2', 'SAGE'],
+                        help="Specify the model type")
+    parser.add_argument('--version', type=int, default=1,
+                        help="Specify the model version")
     args = parser.parse_args()
 
     graph, train_dataset, val_dataset, test_dataset = load_data()
+
+    model_type = args.model
+    version = args.version
+    new_model_name = f"g_retriever_multilabel_{model_type}_v{version}"
     
     if args.split == 'val':
         target_dataset = val_dataset
@@ -305,7 +311,7 @@ def main():
         for label in item['label']:
             train_counts[label] += 1
             
-    model = load_checkpoint(NEW_MODEL_NAME, args.ckpt, graph.x.shape[1])
+    model = load_checkpoint(model_type, new_model_name, args.ckpt, graph.x.shape[1])
     
     print(f"\nRunning Inference on {args.split.upper()} set using {args.ckpt}...")
     collate_fn = create_collate_fn(graph)
@@ -366,4 +372,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-# CUDA_VISIBLE_DEVICES=4 python gretrieval_eval.py --ckpt='best' --saved_model_dir='g_retriever_multilabel' --split='test'
+    # CUDA_VISIBLE_DEVICES=4 python g_retrieval_eval_final.py --ckpt='best' --split='test' --model='GATV2'
