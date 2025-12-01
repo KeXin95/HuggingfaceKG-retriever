@@ -140,8 +140,8 @@ All results are averaged over 10 random seeds with mean ± standard deviation re
 
 | Model | Features | Val Micro-F1 | Test Micro-F1 | Test Macro-F1 |
 |-------|------|----------|--------------|--------------|
-| GAT (1 layer) + Qwen2.5-3B-Instruct | BGE + BM25 (822) | 0.7719 | 0.4104 | 0.1964 |
-| GATV2 (1 layer) + Qwen2.5-3B-Instruct | BGE + BM25 (822) | 0.8497 | 0.4515 | 0.1369 |
+| GAT + Qwen2.5-3B-Instruct | BGE + BM25 (822) | 0.7719 | 0.4104 | 0.1964 |
+| GATV2 + Qwen2.5-3B-Instruct | BGE + BM25 (822) | 0.8497 | 0.4515 | 0.1369 |
 
 ### Evaluation Scripts
 
