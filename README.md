@@ -36,16 +36,11 @@ HuggingfaceKG-retriever/
 │   │   ├── model_utils.py            # Shared GNN model definitions
 │   │   ├── utils.py                  # Shared utilities
 │   │   ├── train.py                  # Main GNN training script
-│   │   ├── eval.py                   # Evaluate fine-tuned LLM models
-│   │   ├── examine_eval.py           # Examine evaluation results
-│   │   ├── plot_eval.py              # Plot evaluation visualizations
-│   │   ├── data/                     # Training results and visualizations
-│   │   ├── gretriever-pending/       # GRetriever (LLM + Graph)
-│   │   │   ├── gretriever.py         # GRetriever implementation
-│   │   │   ├── finetune_llm_taskclass.py  # Fine-tune for task classification
-│   │   │   ├── finetune_llm_linkpred.py   # Fine-tune for link prediction
-│   │   │   ├── gret_eval.py          # GRetriever evaluation
-│   │   │   └── create_classification_evalset.py
+│   │   ├── g_retrieval_w_labels_qwen.py          # Main script to finetune gretrieval with qwen2.5 3b instruct
+│   │   ├── g_retrieval_eval_w_labels_qwen.py     # Main script to evaluate gretrieval with qwen2.5 3b instruct
+│   │   ├── gretriever-mistral/      # LLM + Graph hybrid (GRetriever) Mistral
+│   │   │   ├── gretriever.py        # GRetriever implementation
+│   │   │   ├── gret_eval.py         # GRetriever evaluation script
 │   │   └── README.md                 # Model training documentation
 │   │
 │   ├── notebooks/                    # Jupyter notebooks
