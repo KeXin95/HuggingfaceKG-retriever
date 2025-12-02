@@ -6,7 +6,7 @@ set -e
 echo "Starting the full data processing pipeline..."
 
 # --- DEFINE THE UNIQUE RUN DIRECTORY ONCE ---
-BASE_DIR="../../experiment_runs"
+BASE_DIR="../../../experiment_runs"
 RUN_ID="run_$(date +%Y-%m-%d_%H-%M-%S)"
 RUN_DIR="$BASE_DIR/$RUN_ID"
 # ---------------------------------------------
