@@ -9,17 +9,11 @@ models/
 ├── model_utils.py                # Shared GNN model definitions (GCN, GAT, SAGE, etc.)
 ├── utils.py                      # Shared utilities (graph loading, training helpers)
 ├── train.py                      # Main GNN training script
-├── g_retrieval_final.py          # Main script to finetune gretrieval with qwen2.5 3b instruct
-├── g_retrieval_eval_final.py     # Main script to evaluate gretrieval with qwen2.5 3b instruct
-├── gretriever-pending/      # LLM + Graph hybrid (GRetriever)
+├── g_retrieval_w_labels_qwen.py          # Main script to finetune gretrieval with qwen2.5 3b instruct
+├── g_retrieval_eval_w_labels_qwen.py     # Main script to evaluate gretrieval with qwen2.5 3b instruct
+├── gretriever-mistral/      # LLM + Graph hybrid (GRetriever) Mistral
 │   ├── gretriever.py        # GRetriever implementation
-│   ├── finetune_llm_taskclass.py  # Fine-tune for task classification
-│   ├── finetune_llm_linkpred.py    # Fine-tune for link prediction
 │   ├── gret_eval.py         # GRetriever evaluation script
-│   ├── create_classification_evalset.py
-│   ├── eval.py                  # Evaluate fine-tuned LLM models for task classification
-│   ├── examine_eval.py          # Examine evaluation results from JSON files
-│   └── plot_eval.py             # Create visualizations from evaluation results
 └── README.md                # This file
 ```
 
