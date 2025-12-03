@@ -6,15 +6,20 @@ This directory contains all model training and evaluation code for the Hugging F
 
 ```
 models/
-├── model_utils.py                # Shared GNN model definitions (GCN, GAT, SAGE, etc.)
-├── utils.py                      # Shared utilities (graph loading, training helpers)
-├── train.py                      # Main GNN training script
-├── g_retrieval_w_labels_qwen.py          # Main script to finetune gretrieval with qwen2.5 3b instruct
-├── g_retrieval_eval_w_labels_qwen.py     # Main script to evaluate gretrieval with qwen2.5 3b instruct
-├── gretriever-mistral/      # LLM + Graph hybrid (GRetriever) Mistral
-│   ├── gretriever.py        # GRetriever implementation
-│   ├── gret_eval.py         # GRetriever evaluation script
-└── README.md                # This file
+├── model_utils.py                      # Shared GNN model definitions (GCN, GAT, SAGE, etc.)
+├── utils.py                            # Shared utilities (graph loading, training helpers)
+├── train.py                            # Main GNN training script
+├── inference_graph_to_df.py            # Generate predictions for all nodes and save to parquet
+├── model_config_example.json           # Example config file for inference
+├── eval_helper.py                      # Helper functions for evaluation
+├── g_retrieval_w_labels_qwen.py        # Fine-tune GRetriever with Qwen2.5-3B-Instruct
+├── g_retrieval_eval_w_labels_qwen.py   # Evaluate GRetriever models
+├── gretriever-mistral/                 # LLM + Graph hybrid (GRetriever) with Mistral
+│   ├── gretriever.py                   # GRetriever implementation
+│   ├── gret_eval.py                    # GRetriever evaluation script
+│   └── rag_building_exploration.ipynb  # Exploration notebook
+├── results_inferences/                 # Output directory for inference results
+└── README.md                           # This file
 ```
 
 ## Shared Components
@@ -60,6 +65,9 @@ python train.py \
 - `--use_focal`: Use Focal Loss for class imbalance
 - `--exclude_bm25`: Use only BGE embeddings (drop BM25 features)
 
+**Trained GNN checkpoints** can be downloaded from Google Drive:  
+[Download trained GNN models](https://drive.google.com/drive/folders/1-VkIPmk1hcd772ofoF0tR8VlBozRemQ7?usp=drive_link)
+
 ### Inference
 
 Run inference on a trained model to generate predictions for all nodes in the graph:
@@ -91,7 +99,6 @@ The config file should contain model-specific settings:
 The script generates a Parquet file containing:
 - Node IDs and metadata
 - Predicted task probabilities for all 54 task classes
-- Top-k predicted tasks for each node
 
 #### Performance Results
 
@@ -139,14 +146,59 @@ All results are averaged over 10 random seeds with mean ± standard deviation re
 
 ### GRetriever (LLM + Graph)
 
+We release three GRetriever checkpoints on Hugging Face, each combining a different GNN encoder with Qwen2.5-3B-Instruct:
+
+- **SAGE-based GRetriever**: [`Chloe/gretriever-HFKG_SAGE`](https://huggingface.co/Chloe/gretriever-HFKG_SAGE)
+- **GAT-based GRetriever**: [`Chloe/gretriever-HFKG_GAT`](https://huggingface.co/Chloe/gretriever-HFKG_GAT)
+- **GATv2-based GRetriever**: [`Chloe/gretriever-HFKG_GATV2`](https://huggingface.co/Chloe/gretriever-HFKG_GATV2)
+
+All three models use **BGE + BM25 (822-dim)** node features and are trained for **multi-label task classification** over 54 tasks on the Hugging Face KG.
+
+#### Evaluation
+
+To evaluate a GRetriever model using `g_retrieval_eval_w_labels_qwen.py`, you can either use a **local checkpoint directory** or download directly from **Hugging Face**.
+
+**Option 1: Using a local checkpoint directory**
+
+If you've already downloaded a checkpoint folder locally:
+
+```bash
+python g_retrieval_eval_w_labels_qwen.py \
+  --checkpoint_path ./gretriever_ckpts/gretriever-HFKG_GATV2 \
+  --model GATV2 \
+  --ckpt final \
+  --split test
+```
+
+**Option 2: Downloading from Hugging Face automatically**
+
+The script can automatically download and use a checkpoint from Hugging Face:
+
+```bash
+export HF_TOKEN=your_huggingface_token
+
+python g_retrieval_eval_w_labels_qwen.py \
+  --checkpoint_path Chloe/gretriever-HFKG_GATV2 \
+  --hf_dir /path/to/download/gretriever-HFKG_GATV2 \
+  --model GATV2 \
+  --ckpt final \
+  --split test
+```
+
+**Arguments:**
+- `--checkpoint_path`: Either a local directory path or a Hugging Face repo ID (e.g., `Chloe/gretriever-HFKG_GATV2`)
+- `--hf_dir`: Required when using a Hugging Face repo ID. Specifies where to download the checkpoint.
+- `--model`: Model type (`GAT`, `GATV2`, or `SAGE`) - used for GNN architecture selection
+- `--ckpt`: Checkpoint name within the directory (usually `final`)
+- `--split`: Evaluation split (`val` or `test`)
+
+**Validation and test performance:**
 
 | Model | Features | Val Micro-F1 | Test Micro-F1 | Test Macro-F1 |
-|-------|------|----------|--------------|--------------|
+|-------|----------|--------------|---------------|---------------|
 | SAGE + Qwen2.5-3B-Instruct | BGE + BM25 (822) | 0.5817 | 0.3238 | 0.1159 |
 | GAT + Qwen2.5-3B-Instruct | BGE + BM25 (822) | 0.7719 | 0.4104 | 0.1964 |
-| GATV2 + Qwen2.5-3B-Instruct | BGE + BM25 (822) | 0.8497 | 0.4515 | 0.1369 |
-
-
+| **GATV2 + Qwen2.5-3B-Instruct** | BGE + BM25 (822) | **0.8497** | **0.4515** | **0.1369** |
 
 ### Evaluation Scripts
 

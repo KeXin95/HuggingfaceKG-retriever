@@ -1,0 +1,53 @@
+{
+  "GCN": {
+    "model_type": "GCN",
+    "serialization_method": "torch_state_dict",
+    "model_config": {
+      "hidden_size": 256,
+      "dropout": 0.5
+    },
+    "scaler_filename": "scaler.pkl",
+    "model_filename": "trained_gcn_own_scaler.pt"
+  },
+  "GAT": {
+    "model_type": "GAT",
+    "serialization_method": "torch_state_dict",
+    "model_config": {
+      "hidden_size": 32,
+      "heads": 8,
+      "dropout": 0.5
+    },
+    "scaler_filename": "scaler.pkl",
+    "model_filename": "trained_gat.pt"
+  },
+  "GATV2": {
+    "model_type": "GATV2",
+    "serialization_method": "torch_state_dict",
+    "model_config": {
+      "hidden_size": 256,
+      "dropout": 0.5
+    },
+    "scaler_filename": "GATv2/scaler.pkl",
+    "model_filename": "GATv2/model.pt"
+  },
+  "TRANS": {
+    "model_type": "TRANS",
+    "serialization_method": "torch_state_dict",
+    "model_config": {
+      "hidden_size": 256,
+      "dropout": 0.5
+    },
+    "scaler_filename": "scaler_trans.pkl",
+    "model_filename": "trained_trans_own_scaler.pt"
+  },
+  "SAGE": {
+    "model_type": "SAGE",
+    "serialization_method": "torch_state_dict",
+    "model_config": {
+      "hidden_size": 256,
+      "dropout": 0.5
+    },
+    "scaler_filename": "scaler_sageconv.pkl",
+    "model_filename": "trained_sageconv_own_scaler.pt"
+  }
+}

@@ -28,7 +28,9 @@ HuggingfaceKG-retriever/
 │   │   │   ├── generate_features.py  # Stage 2a: Generate BGE embeddings
 │   │   │   ├── generate_features_bm25.py  # Stage 2b: BGE + BM25 features
 │   │   │   ├── build_graph.py        # Stage 3: Construct graph object
-│   │   │   └── utils.py              # Utility functions
+│   │   │   ├── utils.py              # Utility functions
+│   │   │   └── feas_author.py        # Author feature extraction
+│   │   ├── eda_analysis.py           # Exploratory data analysis
 │   │   ├── run_pipeline.sh           # Complete pipeline execution
 │   │   └── readme.md                 # Detailed pipeline documentation
 │   │
@@ -36,30 +38,48 @@ HuggingfaceKG-retriever/
 │   │   ├── model_utils.py            # Shared GNN model definitions
 │   │   ├── utils.py                  # Shared utilities
 │   │   ├── train.py                  # Main GNN training script
-│   │   ├── g_retrieval_w_labels_qwen.py          # Main script to finetune gretrieval with qwen2.5 3b instruct
-│   │   ├── g_retrieval_eval_w_labels_qwen.py     # Main script to evaluate gretrieval with qwen2.5 3b instruct
-│   │   ├── gretriever-mistral/      # LLM + Graph hybrid (GRetriever) Mistral
-│   │   │   ├── gretriever.py        # GRetriever implementation
-│   │   │   ├── gret_eval.py         # GRetriever evaluation script
+│   │   ├── inference_graph_to_df.py # Generate predictions for all nodes
+│   │   ├── model_config_example.json # Example config for inference
+│   │   ├── eval_helper.py            # Helper functions for evaluation
+│   │   ├── g_retrieval_w_labels_qwen.py    # Fine-tune GRetriever (Qwen2.5-3B)
+│   │   ├── g_retrieval_eval_w_labels_qwen.py  # Evaluate GRetriever models
+│   │   ├── gretriever-mistral/       # LLM + Graph hybrid (Mistral)
+│   │   │   ├── gretriever.py         # GRetriever implementation
+│   │   │   ├── gret_eval.py          # GRetriever evaluation script
+│   │   │   └── rag_building_exploration.ipynb
+│   │   ├── results_inferences/       # Inference output directory
 │   │   └── README.md                 # Model training documentation
 │   │
 │   ├── notebooks/                    # Jupyter notebooks
-│   │   ├── midterm-analysis.ipynb    # Analysis notebooks
+│   │   ├── gnn-performance-analysis.ipynb  # GNN performance analysis
+│   │   ├── midterm-analysis.ipynb    # Midterm analysis
 │   │   └── misc/                     # Additional notebooks
 │   │       ├── EDA-ori.ipynb         # Original data EDA
 │   │       ├── exploration.ipynb     # Data exploration
-│   │       └── PyG_reimplement.ipynb
+│   │       ├── PyG_reimplement.ipynb # PyTorch Geometric reimplementation
+│   │       └── sample-pred.ipynb     # Sample predictions
+│   │
+│   └── experiment_runs/              # Output directory (generated)
+│       └── run_YYYY-MM-DD_HH-MM-SS/  # Individual experiment runs
+│           ├── nodes_df.pkl          # Processed node DataFrame
+│           ├── nodes_df.parquet       # Processed node DataFrame (parquet)
+│           ├── edges_df.pkl          # Processed edge DataFrame
+│           ├── node_features.pt      # BGE embeddings tensor
+│           ├── final_graph.pt        # Final graph object
+│           ├── task_to_idx.json     # Task ID mapping
+│           ├── old_to_new_idx.json  # Node reindexing mapping
+│           ├── scaler.pkl           # Feature scaler
+│           └── {MODEL}/              # Model-specific outputs
+│               ├── model.pt          # Trained model checkpoint
+│               └── scaler.pkl       # Model-specific scaler
 │
 ├── CogDL-master/                     # CogDL library (for graph construction)
-├── experiment_runs/                  # Output directory (generated)
-│   └── run_YYYY-MM-DD_HH-MM-SS/      # Individual experiment runs
-│       ├── nodes_df.pkl              # Processed node DataFrame
-│       ├── edges_df.pkl              # Processed edge DataFrame
-│       ├── node_features.pt         # BGE embeddings tensor
-│       ├── final_graph.pt           # Final graph object
-│       ├── task_to_idx.json         # Task ID mapping
-│       ├── old_to_new_idx.json      # Node reindexing mapping
-│       └── trained_*.pt             # Trained model checkpoints
+├── data/                             # Training results and visualizations
+│   ├── results.csv                   # Performance results table
+│   ├── results.xlsx                  # Performance results (Excel)
+│   ├── micro_f1_comparison.png       # Micro-F1 comparison chart
+│   ├── pr_auc_ranking.png            # PR-AUC ranking chart
+│   └── [other visualization files]
 │
 ├── HuggingKG_V20250916155543/        # Input data folder (large, not in repo)
 │   ├── models.json                   # Model metadata
@@ -72,10 +92,7 @@ HuggingfaceKG-retriever/
 │   ├── model_merge_model.json
 │   ├── model_quantized_model.json
 │   └── model_adapter_model.json
-├── data/                    # Training results and visualizations
-│   ├── results.csv
-│   ├── micro_f1_comparison.png
-│   └── pr_auc_ranking.png
+│
 ├── requirements.txt                  # Python dependencies
 └── README.md                         # This file
 ```

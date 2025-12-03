@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from datasets import Dataset
 from tqdm import tqdm
 from collections import defaultdict
+from huggingface_hub import snapshot_download
 
 from torch_geometric.data import Data, Batch
 from torch_geometric.utils import k_hop_subgraph
@@ -22,7 +23,7 @@ from model_utils import GraphEncoderGAT, GraphEncoderGATConv2, GraphEncoderSAGE
 from sklearn.metrics import f1_score, average_precision_score
 
 MODEL_NAME = "Qwen/Qwen2.5-3B-Instruct"
-BASE_EXP_DIR = './experiment_runs/run_2025-10-11_13-12-14/'
+BASE_EXP_DIR = '../experiment_runs/run_2025-10-11_13-12-14/'
 GRAPH_FILE = os.path.join(BASE_EXP_DIR, 'final_graph.pt')
 NODES_DF_PATH = os.path.join(BASE_EXP_DIR, 'nodes_df.parquet')
 BRIDGE_FILE = os.path.join(BASE_EXP_DIR, 'old_to_new_idx.json')
@@ -282,17 +283,79 @@ def main():
                         help="Folder name of checkpoint (e.g. 'checkpoint-10000') or 'final'")
     parser.add_argument('--split', type=str, default='test', choices=['val', 'test'],
                         help="Which split to evaluate on (val or test)")
+    parser.add_argument(
+        '--checkpoint_path',
+        type=str,
+        required=True,
+        help=(
+            "Path to checkpoint directory. Can be:\n"
+            "  - Local directory path (e.g., '/path/to/gretriever-HFKG_GATV2' or './g_retriever_multilabel_GATV2_v1')\n"
+            "  - Hugging Face repo ID (e.g., 'Chloe/gretriever-HFKG_GATV2'). "
+            "If using HF repo, also provide --hf_dir."
+        ),
+    )
+    parser.add_argument(
+        '--hf_dir',
+        type=str,
+        default=None,
+        help=(
+            "Local directory to download HF repo into. "
+            "Required when --checkpoint_path is a Hugging Face repo ID."
+        ),
+    )
     parser.add_argument('--model', type=str, default='GAT', choices=['GAT', 'GATV2', 'SAGE'],
-                        help="Specify the model type")
-    parser.add_argument('--version', type=int, default=1,
-                        help="Specify the model version")
+                        help="Specify the model type (used for GNN architecture selection).")
     args = parser.parse_args()
 
     graph, train_dataset, val_dataset, test_dataset = load_data()
 
     model_type = args.model
-    version = args.version
-    new_model_name = f"g_retriever_multilabel_{model_type}_v{version}"
+    checkpoint_path = args.checkpoint_path
+
+    # Determine if checkpoint_path is a local directory or an HF repo ID
+    # Check if it's a local path that exists, or if it looks like an HF repo (contains '/' and doesn't exist as path)
+    is_local_path = os.path.exists(checkpoint_path) or os.path.isabs(checkpoint_path) or checkpoint_path.startswith('./') or checkpoint_path.startswith('../')
+    is_hf_repo = '/' in checkpoint_path and not is_local_path
+
+    if is_hf_repo:
+        # Download from Hugging Face Hub
+        if "HF_TOKEN" not in os.environ:
+            raise EnvironmentError(
+                "HF_TOKEN environment variable is not set. "
+                "Please export your Hugging Face token, e.g. `export HF_TOKEN=xxx`, "
+                "before using a Hugging Face repo."
+            )
+        
+        if args.hf_dir is None or args.hf_dir.strip() == "":
+            raise ValueError(
+                "--hf_dir is required when --checkpoint_path is a Hugging Face repo ID. "
+                "Please provide a local directory path, e.g., --hf_dir /path/to/download"
+            )
+
+        repo_id = checkpoint_path
+        print(f"\n--- Downloading checkpoint from HF Hub: {repo_id} ---")
+        print(f"Downloading to: {args.hf_dir}")
+        
+        download_kwargs = {
+            "repo_id": repo_id,
+            "local_dir": args.hf_dir,
+            "local_dir_use_symlinks": False
+        }
+        
+        snapshot_root = snapshot_download(**download_kwargs)
+        new_model_name = snapshot_root
+
+        print(f"Downloaded to: {snapshot_root}")
+        print(f"Using checkpoint directory: {new_model_name}")
+    else:
+        # Use local directory path
+        new_model_name = checkpoint_path
+        if not os.path.exists(new_model_name):
+            raise FileNotFoundError(
+                f"Checkpoint directory not found: {new_model_name}. "
+                "Please provide a valid local path or Hugging Face repo ID."
+            )
+        print(f"Using local checkpoint directory: {new_model_name}")
     
     if args.split == 'val':
         target_dataset = val_dataset
@@ -371,5 +434,19 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
+# export HF_TOKEN=<your_token>
+# For Hugging Face repo:
+# python g_retrieval_eval_w_labels_qwen.py \
+#   --checkpoint_path Chloe/gretriever-HFKG_GATV2 \
+#   --hf_dir /path/to/download \
+#   --model GATV2 \
+#   --ckpt final \
+#   --split test
 
-    # CUDA_VISIBLE_DEVICES=4 python g_retrieval_eval_final.py --ckpt='best' --split='test' --model='GATV2'
+# For local directory:
+# python g_retrieval_eval_w_labels_qwen.py \
+#   --checkpoint_path ./gretriever-HFKG_GATV2 \
+#   --model GATV2 \
+#   --ckpt final \
+#   --split test
