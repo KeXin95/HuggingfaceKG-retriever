@@ -238,26 +238,33 @@ python train.py \
 
 For detailed training documentation, see [`scripts/models/README.md`](scripts/models/README.md).
 
-### 3. GRetriever (LLM + Graph)
+### 3. GRetriever (LLM + Graph - Generative)
 
-Fine-tune LLMs with graph-aware retrieval:
+Fine-tune LLMs with graph-aware retrieval (Ego-RAG). We support both Qwen (2.5B) and Mistral (7B) backbones.:
+
+For the Mistral model:
 
 ```bash
-cd scripts/models/gretriever-pending
+cd scripts/models/gretriever-mistral
 
-# Task classification
-python finetune_llm_taskclass.py
+# 1. Train the model (End-to-End)
+# This saves checkpoints to 'g_retriever_multilabel/'
+python gretriever.py
 
-# Link prediction
-python finetune_llm_linkpred.py
+# 2. Evaluate the model
+python gret_eval.py --ckpt final --split test
+
 ```
 
-## Evaluation Scripts
+For the Qwen Model:
 
-After training models, use the evaluation scripts to analyze performance:
+```bash
 
 ```bash
 cd scripts/models
+
+# Train the Mistral Model
+python g_retrieval_w_labels_qwen.py
 
 # Evaluate fine-tuned LLM models
 python eval.py
