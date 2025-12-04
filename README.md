@@ -240,6 +240,8 @@ For detailed training documentation, see [`scripts/models/README.md`](scripts/mo
 
 ### 3. GRetriever (LLM + Graph - Generative)
 
+![GRetriever Arch](./data/graph_retrieval.png)
+
 Fine-tune LLMs with graph-aware retrieval (Ego-RAG). We support both Qwen (2.5B) and Mistral (7B) backbones.:
 
 For the Mistral model:

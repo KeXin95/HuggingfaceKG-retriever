@@ -197,8 +197,11 @@ python g_retrieval_eval_w_labels_qwen.py \
 | Model | Features | Val Micro-F1 | Test Micro-F1 | Test Macro-F1 |
 |-------|----------|--------------|---------------|---------------|
 | SAGE + Qwen2.5-3B-Instruct | BGE + BM25 (822) | 0.5817 | 0.3238 | 0.1159 |
+| GAT + Mistral 7B | BGE + BM25 (822) | 0.6457 | 0.3571 | 0.1942 |
 | GAT + Qwen2.5-3B-Instruct | BGE + BM25 (822) | 0.7719 | 0.4104 | 0.1964 |
 | **GATV2 + Qwen2.5-3B-Instruct** | BGE + BM25 (822) | **0.8497** | **0.4515** | **0.1369** |
+
+![Generative Models - Comparison](../../data/comparison_mistral_vs_qwen.png)
 
 ### Evaluation Scripts
 
@@ -219,3 +222,9 @@ python plot_eval.py
 - **`eval.py`**: Evaluates fine-tuned LLM models on task classification, generates predictions and metrics
 - **`examine_eval.py`**: Analyzes evaluation results from JSON files, prints detailed classification reports
 - **`plot_eval.py`**: Creates visualizations (F1 vs frequency scatter plots, confusion matrices) from evaluation results
+
+**Final Eval**
+
+Comparing select Generative and Pure-GNN models:
+
+![Comparison](../../data/full_model_comparison.png)
